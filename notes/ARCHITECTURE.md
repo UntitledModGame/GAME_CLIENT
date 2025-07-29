@@ -12,7 +12,7 @@
 
 
 Keep it super fucking simple:
-When this program starts:
+When Game-Client starts:
 
 - If hosting: Start server
 - Load mods
@@ -30,10 +30,10 @@ This includes server-list, friends-lists, game-explorer, etc.
 
 
 ## Whats defined in the base-engine?
-- ECS, Erchetypes
-- EvBuses, QBuses
+- ECS, Erchetypes, Attachments
+- Events, Questions
 - Localization infrastructure
-- Input handling
+- Input handling (+ Panel system?)
 - Sound/Music API
 - Texture-atlas
 - Camera handler
@@ -42,7 +42,6 @@ This includes server-list, friends-lists, game-explorer, etc.
 - Objects (from objects mod)
 - Player-entities (like godot? Have skins?)
 - Networking (super-simple)
-- ECS
 - Chunking
 - Terrain Gridmaps, Ground Gridmaps
 - Rendering of Terrain/Ground Gridmaps
@@ -51,7 +50,7 @@ This includes server-list, friends-lists, game-explorer, etc.
 - Serialization / Chunking
 - Properties management (ie similar to properties mod from old-umg)
 - Holdable items
-- Basic components (x,y, vx, vy, image, health, maxHealth)
+- Basic components (x,y, vx, vy, image, health, maxHealth, team)
 
 
 ## Whats defined in the mods?
