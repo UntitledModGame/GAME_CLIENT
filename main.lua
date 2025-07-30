@@ -10,7 +10,7 @@ __newindex = function(_,k,_)
 end})
 
 
-local constants = require("src.common.constants")
+local constants = require("src.shared.constants")
 love.filesystem.setIdentity(constants.FILESYSTEM_IDENTITY)
 
 
@@ -42,11 +42,11 @@ rawset(_G, "SERVER_SIDE", false)
 
 -----
 -----============================
------ Common globals
+----- shared globals
 -----
 ----- Shared between client/server for consistency,
------ (And so that there's a single source of truth)
-require("src.common.globals")
+----- (And so that there's a SSOT)
+require("src.shared.globals")
 -----=============================
 -----
 
