@@ -84,19 +84,9 @@ end
 
 
 
-tools.hash = function(str)
-    if not str then
-        error("tool.hash(str) first arg is nil!")
-    end
-    return str:len() -- TODO; do this properly later.
-    -- (apparently md5 is a good hashfunc for short strings?)
-    -- it also may be a good idea to test hash distribution against
-    -- minecraft usernames.
-end
 
 
-
-function tools.is_valid_filename(fname)
+function tools.isValidFilename(fname)
     --[[
         if `fname` is a valid filename, returns true.
         Else, returns false.
@@ -114,15 +104,15 @@ end
 
 
 
-function tools.remove_extension(fname)
+function tools.removeExtension(fname)
     return fname:gsub("(.*)%..*$","%1")
 end
 
-function tools.get_extension(fname)
+function tools.getExtension(fname)
     return fname:match("%.[^%.]*$")
 end
 
-function tools.get_filename(fullpath)
+function tools.getFilename(fullpath)
     return fullpath:match("[^/]*$")
 end
 
@@ -167,7 +157,7 @@ if constants.TEST then
         ["lua."] = "."
     }
     for fname, exten in pairs(exten_tests) do
-        if not (tools.get_extension(fname) == exten) then
+        if not (tools.getExtension(fname) == exten) then
             error("test failed: " .. fname .. "  " .. exten .. " :: " .. tools.get_extension(fname))
         end
     end

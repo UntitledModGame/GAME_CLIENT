@@ -10,7 +10,7 @@ local Writer = tools.SafeClass()
 
 function Writer:init(options)
     tools.inlineMethods(self)
-    
+
     self.boxer = options.boxer
 
     self.buffer = {} -- where the packets actually live

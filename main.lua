@@ -54,14 +54,6 @@ local ffi = require("ffi")
 assert(ffi.abi("le"), "Bad endianness. This game will not run on your computer.")
 
 
-rawset(_G, "Region",    require "libs.kirigami.region")
-rawset(_G, "LUI",       require "libs.LUI")
-
-rawset(_G, "LoadingLogo", require "src.client.misc.LoadingLogo.LoadingLogo")
-
-
-rawset(_G, "ui",        require "src.client.ui.ui")
-
 
 rawset(_G, "userService", require("src.client.userService"))
 
