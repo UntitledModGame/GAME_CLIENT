@@ -1,6 +1,10 @@
 
 -- Need to make sure this is loaded; it may not be loaded yet
+
+---@class Set
+---@field private pointers table<any, number>
 local Set = {}
+
 local Set_mt = {
    __index = Set
 }
@@ -29,7 +33,7 @@ function Set:clear()
     for i=1, self.len do
         obj = self[i]
         ptrs[obj] = nil
-        self[i] = nil    
+        self[i] = nil
     end
 
     self.len = 0
