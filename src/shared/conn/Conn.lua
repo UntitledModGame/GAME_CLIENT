@@ -350,56 +350,6 @@ end
 
 
 
-local clientEntTc = typecheck.assert("string", "entity")
-
----@param clientId string
----@param ent Entity
----@return boolean
-function Conn:isEntityKnown(clientId, ent)
-    clientEntTc(clientId, ent)
-    local tabl = self.knownEntities[clientId]
-    return tabl[ent]
-end
-
-
-
----@param clientId string
----@param ent any
-function Conn:makeEntityKnown(clientId, ent)
-    clientEntTc(clientId, ent)
-    local tabl = self.knownEntities[clientId]
-    tabl[ent] = true
-end
-
-
----@param clientId string
----@param ent Entity
-function Conn:deleteEntity(clientId, ent)
-    clientEntTc(clientId, ent)
-    for cl,tabl in pairs(self.knownEntities) do
-        tabl[ent] = nil
-    end
-end
-
-
-
----@param ent Entity
-function Conn:deleteEntityForAll(ent)
-    for cl,tabl in pairs(self.knownEntities) do
-        tabl[ent] = nil
-    end
-end
-
-
----Iterates over known entities
----@param clientId any
----@return fun(tabl: table<Entity, boolean>, index?: Entity): Entity, boolean
-function Conn:iterateKnownEntities(clientId)
-    return pairs(self.knownEntities[clientId])
-end
-
-
-
 
 
 function Conn:hostServer(ip)
