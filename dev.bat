@@ -4,14 +4,14 @@
 
 ::  If you are using VSCode,
 ::  Put this inside of your `keybindings.json`:
-@REM {
-@REM     "key": "alt+j",
-@REM     "command": "workbench.action.terminal.sendSequence",
-@REM     "when": "editorTextFocus",
-@REM     "args": {
-@REM         "text": "dev.bat\r"
-@REM     }
-@REM }
+:: {
+::     "key": "alt+j",
+::     "command": "workbench.action.terminal.sendSequence",
+::     "when": "editorTextFocus",
+::     "args": {
+::         "text": "dev.bat\r"
+::     }
+:: }
 
 
 
