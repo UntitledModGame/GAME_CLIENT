@@ -46,6 +46,8 @@ function View:_flush()
 end
 
 
+
+
 ---@class Attachment
 local Attachment = {}
 
@@ -79,6 +81,24 @@ function ecs.defineComponent(name)
     assert(not components[name], "Redefined component")
     components[name] = true
 end
+
+
+
+function ecs.defineEvent(name)
+    assert(variables.LOADING, "Can only define events at load time!")
+    assert(not components[name], "Redefined component")
+    components[name] = true
+end
+
+
+function ecs.defineQuestion(name, reducer, defaultValue)
+    assert(variables.LOADING, "Can only define components at load time!")
+    assert(not components[name], "Redefined component")
+    components[name] = true
+end
+
+
+
 
 
 
