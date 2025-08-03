@@ -35,9 +35,25 @@ We just join the server, launch the game, etc
 
 
 
-rawset(_G, "CLIENT_SIDE", true)
-rawset(_G, "SERVER_SIDE", false)
--- we are on client-side
+function love.load(args)
+
+    local hasArg = {}
+    for i, arg in ipairs(args) do
+        hasArg[arg] = true
+    end
+
+    if hasArg["--server"] then
+        rawset(_G, "SERVER_SIDE", true)
+        rawset(_G, "CLIENT_SIDE", false)
+
+    else
+        rawset(_G, "CLIENT_SIDE", true)
+        rawset(_G, "SERVER_SIDE", false)
+        love.window = require("love.window")
+        love.window.setMode(800, 600)
+    end
+end
+
 
 
 -----
@@ -54,13 +70,7 @@ local ffi = require("ffi")
 assert(ffi.abi("le"), "Bad endianness. This game will not run on your computer.")
 
 
-
-rawset(_G, "userService", require("src.client.userService"))
-
-
-require("src.client.client")
-
-
+print("Done!")
 
 
 
