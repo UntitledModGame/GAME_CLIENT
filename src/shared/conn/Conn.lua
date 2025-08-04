@@ -320,13 +320,23 @@ end
 
 
 
+---@alias ClientInfo {clientId:string, username:string, status:integer, peer:userdata}
 
 
 ---@class Conn
 ---@field packetTypes table
----@field knownEntities table<string, table<Entity, boolean>>
+---@field currPacketId integer only available server-side
+---@field packetNameToId table<string, integer>
+---@field packetIdToName table<integer, string>
+---@field clientIdToInfo table<string, ClientInfo>
+---@field peerToInfo table<userdata, ClientInfo>
 local Conn = {}
 local Conn_mt = {__index = Conn}
+
+
+local CLIENT_JOINED = 0
+local CLIENT_AUTHENTICATED = 1
+local CLIENT_READY = 2
 
 
 local function newConn()
@@ -337,13 +347,23 @@ local function newConn()
     ]]}
 
     if SERVER_SIDE then
-        self.knownEntities = {--[[
-            [client] -> Set of known entities
-        ]]}
+        self.currPacketId = 0
     end
+    self.packetIdToName = {} -- [id] -> name
+    self.packetNameToId = {} -- [name] -> id
 
     self.broadcastBuffer = {}
     -- self.unicastBuffers = {}
+
+    self.clientIdToInfo = {--[[
+        [clientId] -> {
+            status = CLIENT_JOINED or CLIENT_AUTHENTICATED or CLIENT_READY
+            username = "john_69",
+            peer = enetPeer,
+            clientId = clientId
+        }
+    ]]}
+    self.peerToInfo = {} -- { [peer] -> info }   (same as above, but from enet-peer mapping)
 
     return setmetatable(self, Conn_mt)
 end
@@ -367,19 +387,95 @@ end
 
 
 
-function Conn:definePacketType(pType, types)
-    self.packetTypes[pType] = types
+---@param self Conn
+---@param name string
+---@param id integer
+local function setPacketId(self, name, id)
+    assert(not self.packetNameToId[name], "Overwriting packet???")
+    self.packetIdToName[id] = name
+    self.packetNameToId[name] = id
 end
 
-function Conn:getPacketId(pType)
+
+
+--- Parses and validates ConnectJson,
+---  client -> server
+---@param tabl table
+---@return boolean, string?
+local function validateConnectJson(tabl)
+    if tabl.connectJson ~= "connectJson" then
+        return false, "Invalid ConnectJson"
+    end
+    if type(tabl.auth) ~= "string" then
+        return false, "Bad type for auth"
+    end
+    if type(tabl.clientId) ~= "string" then
+        return false, "Bad type for clientId"
+    end
+    if type(tabl.username) ~= "string" then
+        return false, "Bad type for username"
+    end
+    return true
+end
+
+
+---@param data string
+---@return boolean
+---@return string?
+local function tryDeserConnectJson(data)
+    local ok, tabl
+    ok, tabl = pcall(json.decode, data)
+    if not ok then
+        return false, "Couldnt decode ConnectJson: " .. tostring(tabl)
+    end
+    return validateConnectJson(tabl)
+end
+
+
+
+--- Parses and validates ClientInitJson,
+---  server -> client
+---@param tabl_or_string table|string
+local function clientInitJson(tabl_or_string)
+    local tabl
+    if type(tabl_or_string) == "string" then
+        tabl = json.decode(tabl_or_string)
+    else
+        tabl = tabl_or_string
+    end
+
+    assert(tabl.clientInitJson == "clientInitJson")
+    assert(tabl.packetNameToId)
+    -- todo: put mod-versions here? 
+    -- That way, player can check that everything is installed correctly
+end
+
+
+
+
+
+
+---@param pName string
+---@param types string[]
+function Conn:definePacketType(pName, types)
+    self.packetTypes[pName] = types
+    if SERVER_SIDE then
+        setPacketId(self, pName, self.currPacketId)
+    end
+end
+
+function Conn:getPacketTypelist(pType)
     return self.packetTypes[pType]
 end
 
 
 
+function Conn:unicast(clientId, packetName, a,b,c,d,e)
+
+end
+
 
 function Conn:broadcast(packetName, a,b,c,d,e)
-
 end
 
 
@@ -388,32 +484,39 @@ end
 
 
 
-local function pollLocalPackets(self)
-    local host = self.offlineEnetHost
-    return function()
-        return host:service()
-    end
-end
-
-local function pollOnlinePackets(self)
-    if not self.isOnline then
-        return tools.nullFunction
-    end
-    return function()
-        return self.enetHost:service()
-    end
-end
-
-
 local function dispatchReceive(self, ev)
     local data = ev.data
     local peer = ev.peer -- ENet peer
+
+    if SERVER_SIDE then
+
+    else assert(CLIENT_SIDE)
+        
+    end
 end
 
+
+---@param self Conn
+---@param ev any
 local function dispatchDisconnect(self, ev)
+    local data = ev.data
+    local peer = ev.peer
+
+    if SERVER_SIDE then
+        local clInfo = self.peerToInfo[ev.peer]
+        self.peerToInfo[ev.peer] = nil
+        self.clientIdToInfo[clInfo.clientId] = nil
+        ecs.call("@clientDisconnect")
+    end
 end
+
 
 local function dispatchConnect(self, ev)
+    if CLIENT_SIDE then
+        
+    else -- SERVER:
+        -- do nothing yet. Wait for auth.
+    end
 end
 
 
@@ -426,14 +529,29 @@ local dispatch = {
 
 
 
-function Conn:update(dt)
-    for ev in pollLocalPackets(self) do
+
+local function pollPackets(self)
+    local host = self.offlineEnetHost
+    local ev = host:service()
+    while ev do
         dispatch[ev.type](self, ev)
+        ev = host:service()
     end
 
-    for ev in pollOnlinePackets(self) do
-        dispatch[ev.type](self, ev)
+    if self.isOnline then
+        host = self.enetHost
+        ev = host:service()
+        while ev do
+            dispatch[ev.type](self, ev)
+            ev = host:service()
+        end
     end
+end
+
+
+
+function Conn:update(dt)
+    pollPackets(self)
 end
 
 

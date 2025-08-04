@@ -52,27 +52,18 @@ function love.load(args)
         love.window = require("love.window")
         love.window.setMode(800, 600)
     end
+
+    -- shared globals
+    -- Shared between client/server for consistency,
+    -- (And so that there's a SSOT)
+    require("src.shared.globals")
+    --=============================
+
+    local ffi = require("ffi")
+    assert(ffi.abi("le"), "Bad endianness. This game will not run on your computer.")
+
+
+    print((SERVER_SIDE and "Server booted") or "Client loaded")
 end
-
-
-
------
------============================
------ shared globals
------
------ Shared between client/server for consistency,
------ (And so that there's a SSOT)
-require("src.shared.globals")
------=============================
------
-
-local ffi = require("ffi")
-assert(ffi.abi("le"), "Bad endianness. This game will not run on your computer.")
-
-
-print("Done!")
-
-
-
 
 
