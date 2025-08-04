@@ -113,6 +113,7 @@ end
 function ecs.defineEvent(name)
     assert(variables.LOADING, "Can only define events at load time!")
     assert(not events[name], "Redefined event")
+    assert(not questions[name], "This was previously defined as a question!")
     events[name] = true
 end
 
@@ -120,6 +121,7 @@ end
 function ecs.defineQuestion(name, reducer, defaultValue)
     assert(variables.LOADING, "Can only define questions at load time!")
     assert(not questions[name], "Redefined question")
+    assert(not events[name], "This was previously defined as an event!")
     assert(type(reducer) == "function", "Reducer must be function")
     questions[name] = {
         reducer = reducer,
@@ -128,9 +130,24 @@ function ecs.defineQuestion(name, reducer, defaultValue)
 end
 
 
+
 function ecs.call(ev, ...)
-    for _,f in ipairs()
+    error("nyi")
 end
+function ecs.on(ev, func)
+    error("nyi")
+end
+
+
+
+function ecs.ask(question, ...)
+    error("nyi")
+end
+function ecs.answer(question, func)
+    error("nyi")
+end
+
+
 
 
 
