@@ -14,14 +14,12 @@
 Keep it super fucking simple:
 When Game-Client starts:
 
-- If hosting: Start server
-- Load mods
-- Load world. (If world doesn't exist, generate new world)
-- Join server, player is spawned in. No menus, no BS.
+- If server: start server.
+- If client: join the game.
 
-IMPORTANT DETAIL: ^^^^
-There are no menus!!! The world is instantly loaded!!!!
-The "menu" is in the launcher.
+When the program boots, the player is spawned in. No menus, no BS.
+*Menus are inside the launcher, NOT the game client!*
+
 (Similar to the league-of-legends launcher)
 This includes server-list, friends-lists, game-explorer, etc.
 
