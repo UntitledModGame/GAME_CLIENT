@@ -506,7 +506,7 @@ local function dispatchDisconnect(self, ev)
         local clInfo = self.peerToInfo[ev.peer]
         self.peerToInfo[ev.peer] = nil
         self.clientIdToInfo[clInfo.clientId] = nil
-        ecs.call("@clientDisconnect")
+        ecs.call("@clientDisconnected", clInfo.clientId)
     end
 end
 

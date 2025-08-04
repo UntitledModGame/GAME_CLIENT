@@ -72,7 +72,7 @@ return setmetatable({
     KNOWN_UMG_EVENTS = {
         "@tick",
         "@load",
-        "@playerJoin", "@playerLeave", "@serverDisconnect",
+        "@clientConnected", "@clientDisconnected",
         "@quit",
         "@draw", "@update",
         "@keypressed", "@textinput", "@keyreleased",

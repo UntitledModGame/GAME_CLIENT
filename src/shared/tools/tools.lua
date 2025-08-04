@@ -158,7 +158,7 @@ if constants.TEST then
     }
     for fname, exten in pairs(exten_tests) do
         if not (tools.getExtension(fname) == exten) then
-            error("test failed: " .. fname .. "  " .. exten .. " :: " .. tools.get_extension(fname))
+            error("test failed: " .. fname .. "  " .. exten .. " :: " .. tools.getExtension(fname))
         end
     end
 end

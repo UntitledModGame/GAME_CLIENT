@@ -50,6 +50,29 @@ end
 
 ---@class Attachment
 local Attachment = {}
+--[[
+^^^ TODO: are Attachments even worth having???
+They feel a bit... weird and bloaty.
+Also feels EXTREMELY EASY TO ABUSE.
+(a lot of the time, I feel like a component would suffice.)
+^^^ We need to be careful with giving modders tools that can be abused.
+
+CRAZY IDEA:
+What if Attachments == components?
+As in, 
+
+umg.defineComponent("explosive", {
+    ["onDeath"] = function(ent)
+        print("BOOM.")
+    end
+})
+
+The downside here is that the player couldn't have multiple attachments
+at the same time.
+
+Idk. Also it could be a bit confusing having it like this.
+Do a lot of thinking, dont commit to anything yet.
+]]
 
 
 
@@ -59,6 +82,9 @@ local entities = tools.Set()
 
 local components = {} -- [comp] -> true
 
+local events = {} -- [event] -> true
+
+local questions = {} -- [question] -> { reducer: function, defaultValue: function }
 
 
 
@@ -86,15 +112,24 @@ end
 
 function ecs.defineEvent(name)
     assert(variables.LOADING, "Can only define events at load time!")
-    assert(not components[name], "Redefined component")
-    components[name] = true
+    assert(not events[name], "Redefined event")
+    events[name] = true
 end
 
 
 function ecs.defineQuestion(name, reducer, defaultValue)
-    assert(variables.LOADING, "Can only define components at load time!")
-    assert(not components[name], "Redefined component")
-    components[name] = true
+    assert(variables.LOADING, "Can only define questions at load time!")
+    assert(not questions[name], "Redefined question")
+    assert(type(reducer) == "function", "Reducer must be function")
+    questions[name] = {
+        reducer = reducer,
+        defaultValue = defaultValue
+    }
+end
+
+
+function ecs.call(ev, ...)
+    for _,f in ipairs()
 end
 
 
