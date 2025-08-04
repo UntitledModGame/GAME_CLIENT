@@ -6,22 +6,27 @@ Playable sandbox game.
 The absolute bare-neccessary features that we need:
 
 
-MAKER-CLIENT:
-- Mods can be uploaded
-- Gamemodes can be uploaded
-- Players can search for mods to add (JUST STATIC-DATA SEARCH!!!)
-
-LAUNCH-CLIENT:
-- Gamemodes can be chosen from
-- You can create / join servers
-- (^^^ MAKE SURE ITS SUPER SIMPLE. Younguns dont use serverlists these days)
-
-GAME-CLIENT:
-- You can play/host a game.
+### GAME-CLIENT:
+Main game client.
+- play/host a game.
 - Grid-system
-- Usable/holdable items
+- Mod-loading
 - Multiplayer syncing
 - (^^^ thats honestly it.. we dont need anything fancy)
+
+
+### MAKER-CLIENT:
+Used to develop gamemodes. 
+Auxiliary program that runs alongside the GAME-CLIENT.
+- Players can search for mods to add (JUST STATIC-DATA SEARCH!!!)
+- Mods can be uploaded
+- Gamemodes can be uploaded
+
+
+### LAUNCHER:
+- Gamemodes can be chosen from
+- You can explore / create / join servers
+- Will create an instance of `GAME-CLIENT`
 
 
 ---

@@ -9,7 +9,39 @@ implicitly when the player "just wants it to work".
 
 ----
 
-## OPTIONS:
+# idea:
+We shouldn't have complex implicit-syncing in `Conn` module.
+
+For `"entity"` sync type, we always sync the id.  
+If the id isn't on the client, the packet read fails
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## OLD IDEAS, (DONT DO THIS!)
+## OLD IDEAS, (DONT DO THIS!)
+## OLD IDEAS, (DONT DO THIS!)
+## OLD IDEAS, (DONT DO THIS!)
+## OLD IDEAS, (DONT DO THIS!)
+
+## OLD OPTIONS:
 
 Expose an extra API that calls `sync` automatically:
 ```lua
