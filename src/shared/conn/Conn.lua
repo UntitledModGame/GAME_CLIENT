@@ -13,6 +13,48 @@ local enet = require"enet"
 
 
 
+local DO_TYPECHECK = constants.DEBUG
+
+
+local types = {}
+
+local function makeCheckFunction(typ)
+    local expectStr = "Expected " .. typ .. ", got: "
+    local function check(x)
+        if type(x) ~= typ then
+            return nil, expectStr .. tostring(x)
+        end
+        return true
+    end
+    return check
+end
+
+
+types.number = makeCheckFunction("number")
+types.string = makeCheckFunction("string")
+types.boolean = makeCheckFunction("boolean")
+
+types.entity = function(id)
+    local ok = type(id) == "number" and ecs.getEntity(id)
+    if not ok then
+        return false, "Expected entity, got: "
+    end
+end
+
+
+local function typechecker(val, typ)
+    return types[typ](val)
+end
+
+local function assertType(packetName, val, typ, typeIndex)
+    local ok, er = typechecker(val, typ)
+    if not ok then
+        error(("Bad packet value: %s, arg %d :: %s"):format(packetName, typeIndex, er))
+    end
+end
+
+
+
 
 
 
@@ -22,7 +64,7 @@ local Writer = tools.SafeClass()
 function Writer:init(options)
     tools.inlineMethods(self)
 
-    self.boxer = options.boxer
+    self.conn = options.conn
 
     self.buffer = {} -- where the packets actually live
     self.size = 0
@@ -114,27 +156,17 @@ local pushers = {
 }
 
 
-local DO_TYPECHECK = constants.DEBUG
-
-local function assertType(self, packetName, val, typ, typeIndex)
-    local ok, er = self.boxer.typechecker(val, typ)
-    if not ok then
-        error(("Bad packet value: %s, arg %d :: %s"):format(packetName, typeIndex, er))
-    end
-end
-
-
 function Writer:write(packetName, a,b,c,d,e,f)
-    local boxer = self.boxer
+    local conn = self.conn
     local buffer = self.buffer
-    local typelist = boxer:getPacketTypelist(packetName)
+    local typelist = conn:getPacketTypelist(packetName)
 
     if not typelist then
         error("Unknown packet: " .. tostring(packetName))
     end
 
     local args = #typelist
-    local id = boxer:getPacketId(packetName)
+    local id = conn:getPacketId(packetName)
     if not id then
         error("packetName was not registered: " .. packetName)
     end
@@ -155,7 +187,7 @@ function Writer:write(packetName, a,b,c,d,e,f)
         if typ == "entity" then
             local ent = buffer[i]
             -- transform the entity to be serialized "properly":
-            local data = boxer.entityToData(ent)
+            local data = conn.entityToData(ent)
             buffer[i] = data -- will either be a number, or pckr string,
             -- representing the serialized ent
         end
@@ -176,11 +208,11 @@ end
 
 local Reader = tools.SafeClass()
 
-local KEYS = {"boxer"}
+local KEYS = {"conn"}
 
 function Reader:init(buffer, options)
     tools.assertKeys(options, KEYS)
-    self.boxer = options.boxer
+    self.conn = options.conn
     self.buffer = buffer
     self.failed = false
     self.i = 1
@@ -215,7 +247,7 @@ local function getRegularData(reader, num_args)
 end
 
 
-local function readPacketData(reader, boxer, packetName)
+local function readPacketData(reader, conn, packetName)
     --[[
         Transforms a regular packet, checks types,
         then returns data.
@@ -228,8 +260,8 @@ local function readPacketData(reader, boxer, packetName)
     ]]
     local i = reader.i
     local buffer = reader.buffer
-    local typelist = boxer.nameToPacketTypelist[packetName]
-    local dataToEntity = boxer.dataToEntity
+    local typelist = conn.nameToPacketTypelist[packetName]
+    local dataToEntity = conn.dataToEntity
 
     local packetSize = #typelist -- packet-size indicated by size of typelist
 
@@ -247,7 +279,7 @@ local function readPacketData(reader, boxer, packetName)
 
         if SERVER_SIDE then
             -- only do checks on server-side
-            local ok, er = boxer.typechecker(val, typ)
+            local ok, er = typechecker(val, typ)
             -- its an error!
             if not ok then
                 log.error("Error reading packet: ", er)
@@ -266,7 +298,7 @@ function Reader:read()
         reads the next packet in the buffer,
         and increments the reader position.
     ]]
-    local boxer = self.boxer
+    local conn = self.conn
     local id = self.buffer[self.i]
     if not id then
         self:finish()
@@ -274,14 +306,14 @@ function Reader:read()
     end
 
     local packetName, a,b,c,d,e,f
-    packetName = boxer:getPacketName(id)
+    packetName = conn:getPacketName(id)
     if not packetName then
         self:fail()
         log.error("Unknown packet id: " .. tostring(id))
         return nil
     end
 
-    a,b,c,d,e,f = readPacketData(self, boxer, packetName)
+    a,b,c,d,e,f = readPacketData(self, conn, packetName)
     if self:hasFailed() then
         return nil
     end
@@ -454,7 +486,6 @@ end
 
 
 
-
 ---@param pName string
 ---@param types string[]
 function Conn:definePacketType(pName, types)
@@ -466,6 +497,10 @@ end
 
 function Conn:getPacketTypelist(pType)
     return self.packetTypes[pType]
+end
+
+function Conn:getPacketName(id)
+    return self.packetIdToName[id]
 end
 
 

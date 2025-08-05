@@ -7,6 +7,7 @@ local ecs = {}
 ---@class Entity
 ---@field x number
 ---@field y number
+---@field private _id number
 local Entity = {}
 local Entity_mt = {__index = Entity}
 
@@ -15,20 +16,52 @@ local Entity_mt = {__index = Entity}
 
 
 ---@class View
----@field private _dirtyEntities LightSet
----@field private _entities Set
+---@field _dirtyEntities LightSet
+---@field _entities Set
+---@field _removedCallbacks Array
+---@field _addedCallbacks Array
 ---@field component string
 local View = {}
 local View_mt = {__index = View}
 
+---@param comp string
+---@return View
 local function newView(comp)
-    local self = {}
+    local self = setmetatable({}, View_mt)
     self.component = comp
 
     -- entities that need to be added/removed
     self._dirtyEntities = tools.LightSet()
 
+    self._addedCallbacks = tools.Array()
+    self._removedCallbacks = tools.Array()
+
     self._entities = tools.Set()
+
+    return self
+end
+
+
+
+local function View_rawAdd(self, ent)
+    if not self._entities:has(ent) then
+        for _, cb in ipairs(self._addedCallbacks) do
+            cb(ent)
+        end
+        self._entities:add(ent)
+    end
+end
+
+
+---@param self View
+---@param ent Entity
+local function View_rawRemove(self, ent)
+    if self._entities:has(ent) then
+        for _, cb in ipairs(self._removedCallbacks) do
+            cb(ent)
+        end
+        self._entities:remove(ent)
+    end
 end
 
 
@@ -37,14 +70,25 @@ function View:_flush()
     for ent in self._dirtyEntities:iterate() do
         if ent[c] then
             -- add to view
-
+            View_rawAdd(self, ent)
         else
-            -- remvoe from view
-
+            -- remove from view
+            View_rawRemove(self, ent)
         end
     end
+    self._dirtyEntities:clear()
 end
 
+
+---@param ent Entity
+function View:_addEntity(ent)
+    self._dirtyEntities:add(ent)
+end
+
+---@param ent Entity
+function View:_removeEntity(ent)
+    self._dirtyEntities:add(ent)
+end
 
 
 
@@ -77,8 +121,11 @@ Do a lot of thinking, dont commit to anything yet.
 
 
 
+local currentId = 10000 -- (start at 10000 so we dont invoke array-duality)
 
 local entities = tools.Set()
+local idToEntity = {} -- [id] -> ent
+
 
 local components = {} -- [comp] -> true
 
@@ -165,6 +212,9 @@ function ecs.newEntity(etypeName, x,y, comps)
     ---@cast ent Entity
     ent.x = x
     ent.x = y
+    currentId = currentId + 1
+    ---@diagnostic disable-next-line
+    ent._id = currentId
     for k,v in pairs(comps) do
         ent:addComponent(k,v)
     end
@@ -173,6 +223,12 @@ function ecs.newEntity(etypeName, x,y, comps)
     end
     return ent
 end
+
+
+function ecs.getEntity(id)
+    return idToEntity[id]
+end
+
 
 
 
@@ -192,9 +248,7 @@ end
 ---@param comp string
 ---@return View
 function ecs.view(comp)
-    local view = setmetatable({
-        component = comp
-    }, View_mt)
+    local view = newView(comp)
 
     compToView[comp] = view
     return view
@@ -204,19 +258,53 @@ end
 
 
 
+--- marks a component as dirty (ie added/removed.)
+--- The system will add/remove it from groups
+---@param ent Entity
+---@param comp string
+local function markDirty(ent, comp)
+    local view = compToView[comp]
+
+    error("unfinished.")
+    -- view: add 
+end
+
+
+function Entity:rawsetComponent(comp, val)
+
+end
 
 ---@param comp string
 ---@param val any
 function Entity:addComponent(comp, val)
-    local view = compToView[comp]
-    rawset(self, comp, val)
+    if self[comp] == nil then
+        markDirty(self, comp)
+        rawset(self, comp, val)
+    else
+        rawset(self, comp, val)
+    end
 end
 
 
 ---@param comp string
 function Entity:removeComponent(comp)
-    local view = compToView[comp]
-    rawset(self, comp, nil)
+    if rawget(self, comp) then
+        markDirty(self, comp)
+
+        error("RAGH!!! issue here!")
+        --[[
+        here, there's a terrible bug.
+        We can't just markDirty and rawset(comp,nil),
+        because then we will have nilled the component 
+        WHILST THE ENTITY IS STILL IN GROUPS.
+
+        If we iterate over the view, we expect every entity
+        to have `comp`... but with this code, that invariant is broken.
+
+        We need to buffer the comp-removal AND 
+        ]]
+        rawset(self, comp, nil)
+    end
 end
 
 
@@ -232,6 +320,13 @@ end
 function Entity:getEntityType()
     return getmetatable(self).__index
 end
+
+
+---@return table<string, any>
+function Entity:getId()
+    return getmetatable(self).__index
+end
+
 
 ---@return string
 function Entity:getTypename()

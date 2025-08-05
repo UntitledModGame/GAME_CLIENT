@@ -1,5 +1,6 @@
 
 
+---@class Array
 local Array = {}
 local Array_mt = {__index = Array}
 
@@ -26,6 +27,7 @@ end
 
 
 -- Adds item to array
+---@param x any
 function Array:add(x)
     assert(x ~= nil, "cannot add nil to array")
     self.len = self.len + 1
@@ -53,8 +55,9 @@ Array.length = Array.size -- alias
 
 
 
--- Pops item from array at index
--- (if index is nil, pops from the end of array.)
+--- Pops item from array at index
+--- (if index is nil, pops from the end of array.)
+---@param i integer
 function Array:pop(i)
     if i then 
         if (not (1 <= i and i <= self.len)) then
@@ -76,9 +79,10 @@ end
 
 
 
--- Pops item from array by swapping it with the last item
--- this operation is O(1)
--- WARNING: This operation DOES NOT preserve array order!!!
+--- Pops item from array by swapping it with the last item
+--- this operation is O(1)
+--- WARNING: This operation DOES NOT preserve array order!!!
+--- @param i integer
 function Array:quickPop(i)
     local obj = self[self.len]
     self[i], self[self.len] = obj, nil
@@ -88,6 +92,7 @@ end
 
 
 
+---@param obj any
 function Array:find(obj)
     -- WARNING: Linear search O(n)
     for i=1, self.len do
@@ -101,6 +106,7 @@ end
 
 
 
+---@param func function
 function Array:filter(func)
     local newArray = ctor()
     for i=1, self.len do
@@ -113,6 +119,7 @@ function Array:filter(func)
 end
 
 
+---@param func function
 function Array:map(func)
     local newArray = ctor()
     for i=1, self.len do

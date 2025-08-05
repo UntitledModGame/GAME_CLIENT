@@ -2,7 +2,10 @@
 
 
 
+
+
 ---@class LightSet
+---@field private pointers table
 local LightSet = {}
 local Set_mt = {
    __index = LightSet
@@ -26,11 +29,8 @@ end
 
 --- Clears the LightSet completely.
 function LightSet:clear()
-    local ptrs = self.pointers
-    for k,_ in pairs(ptrs) do
-        ptrs[k] = nil
-    end
-    return self
+   table.clear(self.pointers)
+   return self
 end
 
 

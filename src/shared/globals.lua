@@ -15,5 +15,6 @@ rawset(_G, "json", require("libs.json"))
 
 string.buffer = require("string.buffer")
 
+table.clear = require("table.clear")
 
 
