@@ -16,7 +16,8 @@ local Entity_mt = {__index = Entity}
 
 
 ---@class View
----@field _dirtyEntities LightSet
+---@field _addBuffer LightSet
+---@field _remBuffer LightSet
 ---@field _entities Set
 ---@field _removedCallbacks Array
 ---@field _addedCallbacks Array
@@ -31,7 +32,8 @@ local function newView(comp)
     self.component = comp
 
     -- entities that need to be added/removed
-    self._dirtyEntities = tools.LightSet()
+    self._addBuffer = tools.LightSet()
+    self._remBuffer = tools.LightSet()
 
     self._addedCallbacks = tools.Array()
     self._removedCallbacks = tools.Array()
@@ -61,33 +63,37 @@ local function View_rawRemove(self, ent)
             cb(ent)
         end
         self._entities:remove(ent)
+
+        -- we set it to nil here (during buffering) to avoid errors.
+        --  If we nil it during iteration, a system might iterate through a view,
+        --  and find that the entity has the comp as nil.
+        ent:rawsetComponent(self.component, nil)
     end
 end
 
 
 function View:_flush()
-    local c = self.component
-    for ent in self._dirtyEntities:iterate() do
-        if ent[c] then
-            -- add to view
-            View_rawAdd(self, ent)
-        else
-            -- remove from view
-            View_rawRemove(self, ent)
-        end
+    for ent in self._remBuffer:iterate() do
+        View_rawRemove(self, ent)
     end
-    self._dirtyEntities:clear()
+    for ent in self._addBuffer:iterate() do
+        View_rawAdd(self, ent)
+    end
+    self._addBuffer:clear()
+    self._remBuffer:clear()
 end
 
 
 ---@param ent Entity
 function View:_addEntity(ent)
-    self._dirtyEntities:add(ent)
+    self._remBuffer:remove(ent)
+    self._addBuffer:add(ent)
 end
 
 ---@param ent Entity
 function View:_removeEntity(ent)
-    self._dirtyEntities:add(ent)
+    self._addBuffer:remove(ent)
+    self._remBuffer:add(ent)
 end
 
 
@@ -124,22 +130,30 @@ Do a lot of thinking, dont commit to anything yet.
 local currentId = 10000 -- (start at 10000 so we dont invoke array-duality)
 
 local entities = tools.Set()
+
+---@type table<integer, Entity>
 local idToEntity = {} -- [id] -> ent
 
 
+---@type table<string, true>
 local components = {} -- [comp] -> true
 
+---@type table<string, true>
 local events = {} -- [event] -> true
 
-local questions = {} -- [question] -> { reducer: function, defaultValue: function }
+---@type table<string, {reducer: function, defaultValue: any}>
+local questions = {} -- [question] -> { reducer: function, defaultValue: any }
 
 
 
 -- an "etype" is just a table containing components. No fancy object.
+---@type table<string, true>
 local etypes = {} -- [etype] -> true
 
+---@type table<string, table>
 local nameToEtypeMt = {} -- [etypeName] -> etype_mt
 
+---@type table<string, View>
 local compToView = {} -- [comp] -> View
 
 
@@ -258,52 +272,48 @@ end
 
 
 
---- marks a component as dirty (ie added/removed.)
---- The system will add/remove it from groups
----@param ent Entity
----@param comp string
-local function markDirty(ent, comp)
-    local view = compToView[comp]
+if constants.DEBUG_INTERCEPT_ENTITY_COMPONENTS then
+    error("not yet implemented.")
 
-    error("unfinished.")
-    -- view: add 
+    function Entity:components(ent)
+        return pairs(ent.___debugproxy)
+    end
+    function Entity.rawsetComponent(ent, comp, val)
+        rawset(ent.___debugproxy, comp, val)
+    end
+else
+
+    function Entity.components(ent)
+        return pairs(ent)
+    end
+    Entity.rawsetComponent = rawset
+
 end
 
 
-function Entity:rawsetComponent(comp, val)
 
-end
 
 ---@param comp string
 ---@param val any
 function Entity:addComponent(comp, val)
     if self[comp] == nil then
-        markDirty(self, comp)
-        rawset(self, comp, val)
-    else
-        rawset(self, comp, val)
+        local v = compToView[comp]
+        if v then
+            v:_addEntity(self)
+        end
     end
+    self:rawsetComponent(comp, val)
 end
 
 
 ---@param comp string
 function Entity:removeComponent(comp)
     if rawget(self, comp) then
-        markDirty(self, comp)
-
-        error("RAGH!!! issue here!")
-        --[[
-        here, there's a terrible bug.
-        We can't just markDirty and rawset(comp,nil),
-        because then we will have nilled the component 
-        WHILST THE ENTITY IS STILL IN GROUPS.
-
-        If we iterate over the view, we expect every entity
-        to have `comp`... but with this code, that invariant is broken.
-
-        We need to buffer the comp-removal AND 
-        ]]
-        rawset(self, comp, nil)
+        local v = compToView[comp]
+        if v then
+            v:_removeEntity(self)
+        end
+        self:rawsetComponent(comp, nil)
     end
 end
 

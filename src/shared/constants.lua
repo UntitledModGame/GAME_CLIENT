@@ -48,14 +48,17 @@ return setmetatable({
     };
 
     SHOW_SPLASH = false;
-    
+
     TEST = true; -- Do we want to do testing?
 
     --[[
         TODO: Combine all these debug options into one.
     ]]
     DEBUG = true; -- Do we want debug msgs?
-    AGGRESSIVE_DEBUG = false, -- aggressive debugging?
+
+    DEBUG_INTERCEPT_ENTITY_COMPONENTS = false, -- Do we want to intercept entity-component reads/writes?
+    -- useful for highly aggressive debugging; 
+    -- eg. "where in the code was `ent.x` set to a string?")
 
     DEFAULT_CONSOLE_LOG_LEVEL = DEV_MODE and "info" or "warn",
     CONSOLE_LOG_LEVEL_ENVVAR = "UMG_CONSOLE_LOG_LEVEL",
