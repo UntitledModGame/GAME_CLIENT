@@ -62,7 +62,7 @@ function LightSet:remove(obj)
     if not obj then
         return nil
     end
-    self.pointers[obj] = true
+    self.pointers[obj] = nil
 end
 
 
