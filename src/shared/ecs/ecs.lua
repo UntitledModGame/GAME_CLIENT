@@ -1,5 +1,6 @@
 
 
+---@class ecs
 local ecs = {}
 
 
@@ -25,6 +26,49 @@ local Entity_mt = {__index = Entity}
 local View = {}
 local View_mt = {__index = View}
 
+
+
+local currentId = 10000 -- (start at 10000 so we dont invoke array-duality)
+
+local entities = tools.Set()
+
+---@type table<integer, Entity>
+local idToEntity = {} -- [id] -> ent
+
+
+---@type table<string, true>
+local components = {} -- [comp] -> true
+
+---@type table<string, true>
+local events = {} -- [event] -> true
+
+---@type table<string, {reducer: function, defaultValue: any}>
+local questions = {} -- [question] -> { reducer: function, defaultValue: any }
+
+
+
+-- an "etype" is just a table containing components. No fancy object.
+---@type table<string, true>
+local etypes = {} -- [etype] -> true
+
+---@type table<string, table>
+local nameToEtypeMt = {} -- [etypeName] -> etype_mt
+
+---@type table<string, View>
+local compToView = {} -- [comp] -> View
+---@type table<View, true>
+local isView = {} -- [view] -> true 
+
+
+
+
+
+
+
+
+
+
+
 ---@param comp string
 ---@return View
 local function newView(comp)
@@ -40,6 +84,7 @@ local function newView(comp)
 
     self._entities = tools.Set()
 
+    isView[self] = true
     return self
 end
 
@@ -96,6 +141,26 @@ function View:_removeEntity(ent)
     self._remBuffer:add(ent)
 end
 
+---@param f fun(ent: Entity)
+function View:onAdded(f)
+    self._addedCallbacks:add(f)
+end
+
+---@param f fun(ent: Entity)
+function View:onRemoved(f)
+    self._addedCallbacks:add(f)
+end
+
+function View:ipairs()
+    return ipairs(self._entities)
+end
+
+function View:size()
+    return self._entities:size()
+end
+
+
+
 
 
 ---@class Attachment
@@ -127,39 +192,8 @@ Do a lot of thinking, dont commit to anything yet.
 
 
 
-local currentId = 10000 -- (start at 10000 so we dont invoke array-duality)
-
-local entities = tools.Set()
-
----@type table<integer, Entity>
-local idToEntity = {} -- [id] -> ent
 
 
----@type table<string, true>
-local components = {} -- [comp] -> true
-
----@type table<string, true>
-local events = {} -- [event] -> true
-
----@type table<string, {reducer: function, defaultValue: any}>
-local questions = {} -- [question] -> { reducer: function, defaultValue: any }
-
-
-
--- an "etype" is just a table containing components. No fancy object.
----@type table<string, true>
-local etypes = {} -- [etype] -> true
-
----@type table<string, table>
-local nameToEtypeMt = {} -- [etypeName] -> etype_mt
-
----@type table<string, View>
-local compToView = {} -- [comp] -> View
-
-
-
-function ecs.finalize()
-end
 
 
 
@@ -210,8 +244,21 @@ end
 
 
 
+function ecs.flush()
+    for _, view in pairs(compToView) do
+        view:_flush()
+    end
+end
 
 
+function ecs.clear()
+    error("TODO: untested!")
+    for ent in entities:iterate() do
+        ent:delete()
+    end
+    entities:clear()
+    ecs.flush()
+end
 
 
 
@@ -219,6 +266,7 @@ end
 ---@param etypeName string
 ---@param x any
 ---@param y any
+---@return Entity|table<string,any>
 function ecs.newEntity(etypeName, x,y, comps)
     local ent_mt = nameToEtypeMt[etypeName]
     comps = comps or {}
@@ -269,6 +317,11 @@ function ecs.view(comp)
 end
 
 
+function ecs.exists(ent)
+    return entities:has(ent)
+end
+
+
 
 
 
@@ -290,6 +343,136 @@ else
 
 end
 
+
+local function shouldRecurse(obj, ctx)
+    if type(obj) ~= "table" then
+        return false -- dont recurse into non tables
+    end
+    if ctx.seen[obj] then
+        return false -- we have already seen the object, dont recurse
+    end
+    if isView[obj] then
+        return false -- it's a group, dont recurse
+    end
+
+    return true
+end
+
+
+
+local function deepDelete(obj, ctx)
+    ctx.seen[obj] = true
+    if type(obj) == "table" then
+        for k,v in pairs(obj) do
+            -- delete all the key values
+            if shouldRecurse(v, ctx) then
+                deepDelete(v, ctx)
+            end
+            if shouldRecurse(k, ctx) then
+                deepDelete(k, ctx)
+            end
+        end
+    end
+    if ecs.exists(obj) then
+        -- it's an entity!
+        obj:delete(ctx)
+    end
+end
+
+
+local function deepClone(x, ctx)
+    local seen = ctx.seen
+    if seen[x] then
+        return seen[x]
+    end
+    if shouldRecurse(x, ctx) then
+        if ecs.exists(x) then
+            -- its an entity
+            return x:clone(ctx)
+        else
+            -- its a table or some other object
+            local new_x = {}
+            seen[x] = new_x
+            for k,v in pairs(x) do
+                new_x[deepClone(k, ctx)] = deepClone(v, ctx)
+            end
+            setmetatable(new_x, getmetatable(x))
+            return new_x
+        end
+    end
+    if type(x) == "userdata" and type(x.clone) == "function" then
+        -- probably is a love2d object
+        local cloned = x:clone()
+        seen[x] = cloned
+        return cloned
+    end
+    -- else, it's probably just POD
+    return x
+end
+
+
+
+local function newRecurseContext(ent)
+    return {
+        seen = {[ent] = true},
+    }
+end
+
+
+function Entity:shallowDelete()
+    --[[
+    
+    we need rembuffer or something.
+    Entity should be deleted during flush
+    ]]
+    error("NOT YET IMPLEMENTED! there should be buffering here.")
+
+    for _, view in pairs(compToView) do
+        view:_removeEntity(self)
+    end
+    entities:remove(self)
+    idToEntity[self._id] = nil
+end
+
+
+function Entity:deepDelete(ctx)
+    ctx = ctx or newRecurseContext(self)
+    -- deletes an entity, AND deletes entities that this ent references.
+    for comp, val in self:components() do
+        if shouldRecurse(val, ctx) then
+            deepDelete(val, ctx)
+        end
+    end
+
+    self:shallowDelete()
+end
+
+
+function Entity:deepClone(ctx)
+    if ctx and ctx.seen[self] then
+        return ctx.seen[self]
+    end
+    ctx = ctx or newRecurseContext(self)
+
+    local clonedComps = {}
+    for comp, val in self:components() do
+        if shouldRecurse(val, ctx) then
+            clonedComps[comp] = deepClone(val, ctx)
+        else
+            clonedComps[comp] = val
+        end
+    end
+
+    local cloned = ecs.newEntity(self:getTypename(), self.x, self.y, clonedComps)
+    ctx.seen[self] = cloned
+
+    return cloned
+end
+
+
+Entity.clone = Entity.deepClone
+
+Entity.delete = Entity.deepDelete
 
 
 
@@ -324,6 +507,10 @@ function Entity:isRegularComponent(comp)
     return rawget(self,comp)
 end
 
+function Entity:isSharedComponent(comp)
+    return self:getEntityType()[comp] ~= nil
+end
+
 
 
 ---@return table<string, any>
@@ -332,9 +519,9 @@ function Entity:getEntityType()
 end
 
 
----@return table<string, any>
+---@return integer
 function Entity:getId()
-    return getmetatable(self).__index
+    return self._id
 end
 
 

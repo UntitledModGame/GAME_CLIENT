@@ -13,6 +13,8 @@ rawset(_G, "typecheck", require("src.shared.typecheck"))
 rawset(_G, "json", require("libs.json"))
 
 
+rawset(_G, "ecs", require("src.shared.ecs.ecs"))
+
 string.buffer = require("string.buffer")
 
 table.clear = require("table.clear")
