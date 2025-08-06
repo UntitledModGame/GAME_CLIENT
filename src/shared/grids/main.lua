@@ -15,18 +15,42 @@ function love.load()
     love.window.setPosition((dw - ww) / 2, (dh - wh) / 2)
     love.graphics.setDefaultFilter("nearest", "nearest")
 
-    Grid.defineCellType("mod:test", "test cell")
-    Grid.setGroundFallback("fallback")
+    Grid.defineCellType("mod:white", "circle")
+    Grid.setCell(1, 1, "mod:white")
+    Grid.setCell(1, 4, "mod:white")
+    Grid.setCell(4, 1, "mod:white")
+    Grid.setCell(4, 4, "mod:white")
+
     Grid.setCell(0, 0, "top left")
     Grid.setCell(31, 0, "top right")
     Grid.setCell(0, 31, "bottom left")
     Grid.setCell(31, 31, "bottom right")
 
-    Grid.setCell(15, 15, "tree")
-    Grid.setCell(15, 17, "tree")
-    Grid.setCell(17, 15, "tree")
-    Grid.setCell(17, 17, "tree")
+    Grid.defineCellType("mod:tree", {
+        --INFO: (flam) - for now make it like getColor
+        getImage = function(cell, x, y)
+            if x == 15 and y == 15 then
+                return { 1, 0, 0, 0.5 }
+            end
+            if x == 15 and y == 17 then
+                return { 0, 1, 0, 0.5 }
+            end
+            if x == 17 and y == 15 then
+                return { 0, 0, 1, 0.5 }
+            end
+            if x == 17 and y == 17 then
+                return { 1, 1, 0, 0.5 }
+            end
+            return { 0, 1, 0, 0.5 }
+        end
+    })
 
+    Grid.setCell(15, 15, "mod:tree")
+    Grid.setCell(15, 17, "mod:tree")
+    Grid.setCell(17, 15, "mod:tree")
+    Grid.setCell(17, 17, "mod:tree")
+
+    Grid.setGroundFallback("fallback")
     Grid.setGround(0, 0, "dirt")
     Grid.setGround(31, 0, "dirt")
     Grid.setGround(0, 31, "dirt")
@@ -103,19 +127,32 @@ function love.draw()
 
                 local main = Grid.getCell(gx, gy)
                 if main then
-                    if main == "tree" then
-                        love.graphics.setColor(0, 1, 0, 1)
-                        love.graphics.rectangle("fill", wx + 1, wy + 1, cellSize - 2, cellSize - 2)
-                    else
-                        love.graphics.setColor(1, 1, 1, 1)
-                        love.graphics.print(cell, wx + 2, wy + 2)
+                    local cellType = Grid.getCellType(main)
+                    if cellType then
+                        if cellType == "circle" then
+                            love.graphics.setColor(1, 1, 1, 0.5)
+                            love.graphics.circle(
+                                "fill",
+                                wx + cellSize/2,
+                                wy + cellSize/2,
+                                cellSize/2,
+                                cellSize/2
+                            )
+                        elseif cellType.getImage then
+                            local img = cellType.getImage(main, gx, gy)
+                            love.graphics.setColor(img)
+                            love.graphics.rectangle("fill", wx + 1, wy + 1, cellSize - 2, cellSize - 2)
+                        end
                     end
+
+                    love.graphics.setColor(1, 1, 1, 1)
+                    love.graphics.print(main, wx, wy)
                 end
             end)
 
             local label = "chunk:" .. chunkX .. "," .. chunkY
-            local chunkCenterX = chunkX + chunkRegion/2
-            local chunkCenterY = chunkY + chunkRegion/2
+            local chunkCenterX = chunkX + chunkRegion / 2
+            local chunkCenterY = chunkY + chunkRegion / 2
             love.graphics.setColor(1, 1, 0, 1)
             love.graphics.print(label, chunkCenterX, chunkCenterY)
         end
