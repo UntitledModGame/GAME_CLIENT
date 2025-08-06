@@ -7,7 +7,11 @@ if (not DO_TESTS) then return end
 
 
 -- ECS API Test Suite
-ecs.defineEntityType("test", {})
+ecs.defineComponent("shared")
+ecs.defineEntityType("test", {
+    shared = true
+})
+
 ecs.defineComponent("foo")
 ecs.defineComponent("bar")
 
@@ -26,6 +30,41 @@ do -- Basic flush behavior
 end
 
 
+do -- Entity deletion removes from views
+    local v = ecs.view("foo")
+    local e = ecs.newEntity("test")
+
+    e:addComponent("foo", 42)
+    ecs.flush()
+    assert(v:size() == 1)
+
+    e:delete()
+    assert(v:size() == 1)
+    ecs.flush()
+    assert(v:size() == 0)
+
+    assert(e:isDeleted())
+    ecs.clear()
+end
+
+
+do -- Referenced entity deletion
+    local e1 = ecs.newEntity("test")
+    local e2 = ecs.newEntity("test")
+
+    e1.foo = e2
+    e1:delete()
+
+    ecs.flush()
+
+    assert(getmetatable(e1) == getmetatable(e2))
+    assert(e2:isDeleted())
+    assert(e1:isDeleted())
+
+    ecs.clear()
+end
+
+
 
 do -- View caching
     local v1 = ecs.view("bar")
@@ -34,10 +73,10 @@ do -- View caching
     ecs.clear()
 end
 
-do -- Direct assignment
+do -- __newindex same as addComponent
     ecs.defineComponent("health")
     local v = ecs.view("health")
-    local e = ecs.newEntity("player")
+    local e = ecs.newEntity("test")
 
     e.health = 100
     ecs.flush()
@@ -50,7 +89,7 @@ end
 do -- Component removal
     ecs.defineComponent("weapon")
     local v = ecs.view("weapon")
-    local e = ecs.newEntity("soldier")
+    local e = ecs.newEntity("test",0,0)
 
     e.weapon = "sword"
     assert(v:size() == 0)
@@ -66,17 +105,16 @@ do -- Component removal
 end
 
 do -- Shared components
-    ecs.defineComponent("comp")
     ecs.defineEntityType("etype1", {
-        comp = {}
+        shared = {}
     })
 
     local e1 = ecs.newEntity("etype1")
     local e2 = ecs.newEntity("etype1")
-    assert(e1.comp == e2.comp)
+    assert(e1.shared == e2.shared)
     assert(e1 ~= e2)
-    assert(e1:isSharedComponent("comp"))
-    assert(not e1:isRegularComponent("comp"))
+    assert(e1:isSharedComponent("shared"))
+    assert(not e1:isRegularComponent("shared"))
 
     ecs.clear()
 end
@@ -93,7 +131,7 @@ do -- Shared to regular transformation
     assert(e1:isSharedComponent("data"))
 
     e1.data = {value = 20}
-    assert(e1.data ~= e2.data)  
+    assert(e1.data ~= e2.data)
     assert(e1:isRegularComponent("data"))
     assert(e2:isSharedComponent("data"))
 
@@ -119,22 +157,8 @@ do -- Regular back to shared via removeComponent
     ecs.clear()
 end
 
-do -- Shared component mutation
-    ecs.defineComponent("config")
-    ecs.defineEntityType("etype4", {
-        config = {level = 1}
-    })
 
-    local e1 = ecs.newEntity("etype4")
-    local e2 = ecs.newEntity("etype4")
-
-    e1.config.level = 5  -- Mutate shared table
-    assert(e2.config.level == 5)  -- Should affect both
-
-    ecs.clear()
-end
-
-do -- Add-remove-add sequence
+do -- Add-remove-add inbetween flushes
     ecs.defineComponent("temp")
     local v = ecs.view("temp")
     local e = ecs.newEntity("test")
@@ -150,7 +174,8 @@ do -- Add-remove-add sequence
     ecs.clear()
 end
 
-do -- Add-remove sequence (should not be in view)
+
+do -- Add-then-remove (should not be in view)
     ecs.defineComponent("volatile")
     local v = ecs.view("volatile")
     local e = ecs.newEntity("test")

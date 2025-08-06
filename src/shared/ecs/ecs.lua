@@ -30,6 +30,11 @@ local View_mt = {__index = View}
 
 local currentId = 10000 -- (start at 10000 so we dont invoke array-duality)
 
+
+local addBuffer = tools.Set()
+local remBuffer = tools.Set()
+
+---@type Set
 local entities = tools.Set()
 
 ---@type table<integer, Entity>
@@ -49,10 +54,11 @@ local questions = {} -- [question] -> { reducer: function, defaultValue: any }
 
 -- an "etype" is just a table containing components. No fancy object.
 ---@type table<string, true>
-local etypes = {} -- [etype] -> true
+local isValidEntityType = {} -- [etype] -> true
 
 ---@type table<string, table>
-local nameToEtypeMt = {} -- [etypeName] -> etype_mt
+local nameToEtypeMt = {} -- [etypeName] -> entity_mt
+-- (the `entity_mt` will be the metatable of the entity)
 
 ---@type table<string, View>
 local compToView = {} -- [comp] -> View
@@ -244,7 +250,28 @@ end
 
 
 
+
+
+local function trueDeleteEntity(self)
+    for _, view in pairs(compToView) do
+        -- todo: make this more efficient. we dont need to iterate ALL views
+        view:_removeEntity(self)
+    end
+    entities:remove(self)
+    idToEntity[self.___id] = nil
+end
+
+
 function ecs.flush()
+    for _, ent in ipairs(remBuffer) do
+        trueDeleteEntity(ent)
+    end
+    for _, ent in ipairs(addBuffer) do
+        entities:add(ent)
+    end
+    addBuffer:clear()
+    remBuffer:clear()
+
     for _, view in pairs(compToView) do
         view:_flush()
     end
@@ -252,24 +279,29 @@ end
 
 
 function ecs.clear()
-    error("TODO: untested!")
-    for ent in entities:iterate() do
+    ecs.flush()
+    addBuffer:clear()
+    for _, ent in ipairs(entities) do
         ent:delete()
     end
-    entities:clear()
     ecs.flush()
 end
 
 
 
+local newEntityTc = typecheck.assert("string", "number", "number", "table?")
 
 ---@param etypeName string
 ---@param x any
 ---@param y any
 ---@return Entity|table<string,any>
 function ecs.newEntity(etypeName, x,y, comps)
+    newEntityTc(etypeName, x,y, comps)
     local ent_mt = nameToEtypeMt[etypeName]
     comps = comps or {}
+    if not ent_mt then
+        error("Undefined entity type: " .. tostring(etypeName), 2)
+    end
     local ent = setmetatable(comps, ent_mt)
     ---@cast ent Entity
     ent.x = x
@@ -283,6 +315,7 @@ function ecs.newEntity(etypeName, x,y, comps)
     for k,v in pairs(ent:getEntityType()) do
         ent:addComponent(k,v)
     end
+    addBuffer:add(ent)
     return ent
 end
 
@@ -293,16 +326,25 @@ end
 
 
 
+---@param ent Entity
+---@return string
+local function entityToString(ent)
+    return string.format("<ent: %s id=%s>", ent:getTypename(), tostring(ent:getId()))
+end
+
 
 function ecs.defineEntityType(name, etype)
-    assert(not etypes[etype], "Used the same table for 2 entity-types!")
+    assert(not isValidEntityType[etype], "Used the same table for 2 entity-types!")
 
-    nameToEtypeMt[name] = {
+    local entMt = {
         ___typename = name,
         __index = setmetatable(etype, Entity_mt),
+        __newindex = Entity.addComponent,
+        __tostring = entityToString
     }
 
-    etypes[etype] = true
+    nameToEtypeMt[name] = entMt
+    isValidEntityType[entMt] = true
 end
 
 
@@ -310,15 +352,18 @@ end
 ---@param comp string
 ---@return View
 function ecs.view(comp)
-    local view = newView(comp)
+    if compToView[comp] then
+        return compToView[comp]
+    end
 
+    local view = newView(comp)
     compToView[comp] = view
     return view
 end
 
 
-function ecs.exists(ent)
-    return entities:has(ent)
+function ecs.isEntity(ent)
+    return isValidEntityType[getmetatable(ent)]
 end
 
 
@@ -362,6 +407,10 @@ end
 
 local function deepDelete(obj, ctx)
     ctx.seen[obj] = true
+    if ecs.isEntity(obj) then
+        -- it's an entity!
+        obj:delete(ctx)
+    end
     if type(obj) == "table" then
         for k,v in pairs(obj) do
             -- delete all the key values
@@ -373,11 +422,40 @@ local function deepDelete(obj, ctx)
             end
         end
     end
-    if ecs.exists(obj) then
-        -- it's an entity!
-        obj:delete(ctx)
-    end
 end
+
+
+
+local function newRecurseContext(ent)
+    return {
+        seen = {[ent] = true},
+    }
+end
+
+
+function Entity:shallowDelete()
+    self.___deleted = true
+    addBuffer:remove(self)
+    remBuffer:add(self)
+end
+
+
+function Entity:isDeleted()
+    return self.___deleted
+end
+
+
+function Entity:deepDelete(ctx)
+    ctx = ctx or newRecurseContext(self)
+    -- deletes an entity, AND deletes entities that this ent references.
+    for comp, val in self:components() do
+        if shouldRecurse(val, ctx) then
+            deepDelete(val, ctx)
+        end
+    end
+    self:shallowDelete()
+end
+
 
 
 local function deepClone(x, ctx)
@@ -386,7 +464,7 @@ local function deepClone(x, ctx)
         return seen[x]
     end
     if shouldRecurse(x, ctx) then
-        if ecs.exists(x) then
+        if ecs.isEntity(x) then
             -- its an entity
             return x:clone(ctx)
         else
@@ -410,37 +488,6 @@ local function deepClone(x, ctx)
     return x
 end
 
-
-
-local function newRecurseContext(ent)
-    return {
-        seen = {[ent] = true},
-    }
-end
-
-
-function Entity:shallowDelete()
-    error("NOT YET IMPLEMENTED! there should be buffering here.")
-
-    for _, view in pairs(compToView) do
-        view:_removeEntity(self)
-    end
-    entities:remove(self)
-    idToEntity[self.___id] = nil
-end
-
-
-function Entity:deepDelete(ctx)
-    ctx = ctx or newRecurseContext(self)
-    -- deletes an entity, AND deletes entities that this ent references.
-    for comp, val in self:components() do
-        if shouldRecurse(val, ctx) then
-            deepDelete(val, ctx)
-        end
-    end
-
-    self:shallowDelete()
-end
 
 
 function Entity:deepClone(ctx)
