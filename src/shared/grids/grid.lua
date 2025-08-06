@@ -17,6 +17,9 @@ local Grid = {
     groundFallback = nil,
 }
 
+function Grid.getChunkSize() return CHUNK_SIZE end
+function Grid.getCellSize() return GRID_CELL_SIZE end
+
 local function getIndex(x, y)
     return x + y * CHUNK_SIZE
 end
@@ -145,6 +148,10 @@ function Grid.worldToGrid(wx, wy)
 end
 
 -- CELL --
+-- INFO: (flam) - possible keys in data:
+--                  - getImage (function)
+--                  - onTick (function)
+--                  - physics (table)
 function Grid.defineCellType(name, data)
     Grid.cellTypes[name] = data
 end

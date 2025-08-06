@@ -1,0 +1,87 @@
+local Grid = require("src.shared.grids.grid")
+
+local camera = {
+    x = -360,
+    y = -360,
+    speed = 360,
+}
+
+function love.load()
+    print("Testing grids")
+    local dw, dh = love.window.getDesktopDimensions()
+    local ww, wh = 1280, 720
+    love.window.setMode(ww, wh)
+    love.window.setPosition((dw - ww) / 2, (dh - wh) / 2)
+
+    Grid.defineCellType("mod:test", "test cell")
+    Grid.setGroundFallback("fallback")
+    Grid.setCell(0, 0, "top left")
+    Grid.setCell(31, 0, "top right")
+    Grid.setCell(0, 31, "bottom left")
+    Grid.setCell(31, 31, "bottom right")
+end
+
+function love.update(dt)
+    local dx = 0
+    local dy = 0
+    if love.keyboard.isDown("w") then
+        dy = -1
+    elseif love.keyboard.isDown("s") then
+        dy = 1
+    end
+    if love.keyboard.isDown("a") then
+        dx = -1
+    elseif love.keyboard.isDown("d") then
+        dx = 1
+    end
+
+    camera.x = camera.x + camera.speed * dt * dx
+    camera.y = camera.y + camera.speed * dt * dy
+end
+
+function love.draw()
+    love.graphics.setBackgroundColor(0, 0, 0, 1)
+    local cellSize = Grid.getCellSize()
+    local chunkSize = Grid.getChunkSize()
+
+    love.graphics.push()
+    love.graphics.translate(-camera.x, -camera.y)
+
+    local sw, sh = love.graphics.getDimensions()
+    local sx, sy = Grid.worldToGrid(0, 0)
+    local ex, ey = Grid.worldToGrid(sw, sh)
+    local csx, csy = Grid.getChunk(sx, sy)
+    local cex, cey = Grid.getChunk(ex, ey)
+
+    local chunkRegion = chunkSize * cellSize
+
+    for cy = csy, cey do
+        for cx = csx, cex do
+            local chunkX = cx * chunkRegion
+            local chunkY = cy * chunkRegion
+            love.graphics.setColor(0, 1, 0, 1)
+            love.graphics.rectangle("line", chunkX, chunkY, chunkRegion, chunkRegion)
+
+            local label = "chunk:" .. chunkX .. "," .. chunkY
+            local chunkCenterX = chunkX + chunkRegion/2
+            local chunkCenterY = chunkY + chunkRegion/2
+            love.graphics.setColor(1, 1, 0, 1)
+            love.graphics.print(label, chunkCenterX, chunkCenterY)
+
+            Grid.foreachInChunk(cx, cy, function(cell, gx, gy)
+                local wx, wy = Grid.gridToWorld(gx, gy)
+                love.graphics.setColor(0.4, 0.4, 0.4, 1)
+                love.graphics.rectangle("line", wx, wy, cellSize, cellSize)
+                if cell ~= nil then
+                    love.graphics.setColor(1, 1, 1, 1)
+                    love.graphics.print(cell, wx + 2, wy + 2)
+                end
+            end)
+        end
+    end
+
+    love.graphics.pop()
+
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.print("Press WASD to move the camera around")
+end
