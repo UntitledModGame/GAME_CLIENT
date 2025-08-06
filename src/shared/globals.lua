@@ -1,9 +1,13 @@
 
 
 
-
 rawset(_G, "constants", require("src.shared.constants"))
 rawset(_G, "variables", require("src.shared.variables"))
+
+
+string.buffer = require("string.buffer")
+table.clear = require("table.clear")
+
 
 rawset(_G, "tools", require("src.shared.tools.tools"))
 
@@ -14,9 +18,8 @@ rawset(_G, "json", require("libs.json"))
 
 
 rawset(_G, "ecs", require("src.shared.ecs.ecs"))
-
-string.buffer = require("string.buffer")
-
-table.clear = require("table.clear")
+if constants.TEST then
+    require("src.shared.ecs.ecs_tests")
+end
 
 

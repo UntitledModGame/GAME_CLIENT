@@ -8,7 +8,7 @@ local ecs = {}
 ---@class Entity
 ---@field x number
 ---@field y number
----@field private _id number
+---@field private ___id number
 local Entity = {}
 local Entity_mt = {__index = Entity}
 
@@ -276,7 +276,7 @@ function ecs.newEntity(etypeName, x,y, comps)
     ent.x = y
     currentId = currentId + 1
     ---@diagnostic disable-next-line
-    ent._id = currentId
+    ent.___id = currentId
     for k,v in pairs(comps) do
         ent:addComponent(k,v)
     end
@@ -420,18 +420,13 @@ end
 
 
 function Entity:shallowDelete()
-    --[[
-    
-    we need rembuffer or something.
-    Entity should be deleted during flush
-    ]]
     error("NOT YET IMPLEMENTED! there should be buffering here.")
 
     for _, view in pairs(compToView) do
         view:_removeEntity(self)
     end
     entities:remove(self)
-    idToEntity[self._id] = nil
+    idToEntity[self.___id] = nil
 end
 
 
@@ -521,7 +516,7 @@ end
 
 ---@return integer
 function Entity:getId()
-    return self._id
+    return self.___id
 end
 
 

@@ -17,6 +17,7 @@ tools.identity = function(x) return x end
 
 
 tools.Set = require(tools.path(...)..".Set")
+tools.LightSet = require(tools.path(...)..".LightSet")
 tools.Array = require(tools.path(...)..".Array")
 tools.Class = require(tools.path(...)..".Class")
 tools.SafeTable = require(tools.path(...)..".SafeTable")
