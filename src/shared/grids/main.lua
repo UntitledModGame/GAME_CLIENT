@@ -4,6 +4,7 @@ local camera = {
     x = -360,
     y = -360,
     speed = 360,
+    zoom = 1.0,
 }
 
 function love.load()
@@ -12,6 +13,7 @@ function love.load()
     local ww, wh = 1280, 720
     love.window.setMode(ww, wh)
     love.window.setPosition((dw - ww) / 2, (dh - wh) / 2)
+    love.graphics.setDefaultFilter("nearest", "nearest")
 
     Grid.defineCellType("mod:test", "test cell")
     Grid.setGroundFallback("fallback")
@@ -49,6 +51,16 @@ function love.update(dt)
     camera.y = camera.y + camera.speed * dt * dy
 end
 
+function love.keypressed(key)
+    if key == "n" then
+        camera.zoom = camera.zoom / 1.1
+    elseif key == "m" then
+        camera.zoom = camera.zoom * 1.1
+    elseif key == "b" then
+        camera.zoom = 1.0
+    end
+end
+
 function love.draw()
     love.graphics.setBackgroundColor(0, 0, 0, 1)
     local cellSize = Grid.getCellSize()
@@ -56,6 +68,7 @@ function love.draw()
 
     love.graphics.push()
     love.graphics.translate(-camera.x, -camera.y)
+    love.graphics.scale(camera.zoom)
 
     local sw, sh = love.graphics.getDimensions()
     local sx, sy = Grid.worldToGrid(0, 0)
@@ -111,5 +124,7 @@ function love.draw()
     love.graphics.pop()
 
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("Press WASD to move the camera around")
+    love.graphics.print("Press WASD to move the camera around", 0, 0)
+    love.graphics.print("Press n/m to zoom in/out the camera", 0, 16)
+    love.graphics.print("Press b to reset camera zoom", 0, 32)
 end
