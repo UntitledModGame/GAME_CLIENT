@@ -12,6 +12,11 @@ local ecs = {}
 local Entity = {}
 local Entity_mt = {__index = Entity}
 
+local IGNORE_KEYS = {
+    ___id = true,
+    ___deleted = true
+}
+
 
 
 
@@ -154,7 +159,7 @@ end
 
 ---@param f fun(ent: Entity)
 function View:onRemoved(f)
-    self._addedCallbacks:add(f)
+    self._removedCallbacks:add(f)
 end
 
 function View:ipairs()
@@ -306,7 +311,7 @@ function ecs.newEntity(etypeName, x,y, comps)
     local ent = setmetatable(comps, ent_mt)
     ---@cast ent Entity
     ent.x = x
-    ent.x = y
+    ent.y = y
     currentId = currentId + 1
     ---@diagnostic disable-next-line
     ent.___id = currentId
@@ -316,9 +321,10 @@ function ecs.newEntity(etypeName, x,y, comps)
             v:_addEntity(ent)
         end
     end
-    for k,v in pairs(comps) do
-        ent:addComponent(k,v)
+    for comp,v in pairs(comps) do
+        ent:addComponent(comp,v)
     end
+    idToEntity[ent:getId()] = ent
     addBuffer:add(ent)
     return ent
 end
@@ -337,8 +343,18 @@ local function entityToString(ent)
 end
 
 
+local function assertValidComponent(comp)
+    if (not components[comp]) and (not IGNORE_KEYS[comp]) then
+        error("Invalid component: " .. tostring(comp), 2)
+    end
+end
+
+
 function ecs.defineEntityType(name, etype)
     assert(not isValidEntityType[etype], "Used the same table for 2 entity-types!")
+    for comp,v in pairs(etype)do
+        assertValidComponent(comp)
+    end
 
     local entMt = {
         ___typename = name,
@@ -441,6 +457,9 @@ end
 
 
 function Entity:shallowDelete()
+    if self:isDeleted() then
+        return
+    end
     self.___deleted = true
     addBuffer:remove(self)
     remBuffer:add(self)
@@ -528,6 +547,7 @@ Entity.delete = Entity.deepDelete
 ---@param comp string
 ---@param val any
 function Entity:addComponent(comp, val)
+    assertValidComponent(comp)
     if self[comp] == nil then
         local v = compToView[comp]
         if v then
