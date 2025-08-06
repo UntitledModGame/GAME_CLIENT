@@ -46,13 +46,6 @@ local function typechecker(val, typ)
     return types[typ](val)
 end
 
-local function assertType(packetName, val, typ, typeIndex)
-    local ok, er = typechecker(val, typ)
-    if not ok then
-        error(("Bad packet value: %s, arg %d :: %s"):format(packetName, typeIndex, er))
-    end
-end
-
 
 
 
@@ -181,13 +174,16 @@ function Writer:write(packetName, a,b,c,d,e,f)
         local typ = typelist[typeIndex]
 
         if DO_TYPECHECK then
-            assertType(self, packetName, buffer[i], typ, typeIndex)
+            local ok, er = typechecker(buffer[i], typ)
+            if not ok then
+                error(("Bad packet value: %s, arg %d :: %s"):format(packetName, typeIndex, er))
+            end
         end
 
         if typ == "entity" then
             local ent = buffer[i]
             -- transform the entity to be serialized "properly":
-            local data = conn.entityToData(ent)
+            local data = ent:getId()
             buffer[i] = data -- will either be a number, or pckr string,
             -- representing the serialized ent
         end
