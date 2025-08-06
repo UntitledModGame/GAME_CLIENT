@@ -19,6 +19,16 @@ function love.load()
     Grid.setCell(31, 0, "top right")
     Grid.setCell(0, 31, "bottom left")
     Grid.setCell(31, 31, "bottom right")
+
+    Grid.setCell(15, 15, "tree")
+    Grid.setCell(15, 17, "tree")
+    Grid.setCell(17, 15, "tree")
+    Grid.setCell(17, 17, "tree")
+
+    Grid.setGround(0, 0, "dirt")
+    Grid.setGround(31, 0, "dirt")
+    Grid.setGround(0, 31, "dirt")
+    Grid.setGround(31, 31, "dirt")
 end
 
 function love.update(dt)
@@ -62,21 +72,39 @@ function love.draw()
             love.graphics.setColor(0, 1, 0, 1)
             love.graphics.rectangle("line", chunkX, chunkY, chunkRegion, chunkRegion)
 
+            Grid.foreachInChunk(cx, cy, function(cell, gx, gy)
+                local wx, wy = Grid.gridToWorld(gx, gy)
+                love.graphics.setColor(0.4, 0.4, 0.4, 1)
+                love.graphics.rectangle("line", wx, wy, cellSize, cellSize)
+
+                local ground = Grid.getGround(gx, gy)
+                if ground then
+                    if ground == "dirt" then
+                        love.graphics.setColor(0.7, 0.7, 0.7, 1)
+                        love.graphics.rectangle("fill", wx + 1, wy + 1, cellSize - 2, cellSize - 2)
+                    elseif ground == "fallback" then
+                        love.graphics.setColor(0.7, 0.7, 0.7, 0.3)
+                        love.graphics.rectangle("fill", wx + 1, wy + 1, cellSize - 2, cellSize - 2)
+                    end
+                end
+
+                local main = Grid.getCell(gx, gy)
+                if main then
+                    if main == "tree" then
+                        love.graphics.setColor(0, 1, 0, 1)
+                        love.graphics.rectangle("fill", wx + 1, wy + 1, cellSize - 2, cellSize - 2)
+                    else
+                        love.graphics.setColor(1, 1, 1, 1)
+                        love.graphics.print(cell, wx + 2, wy + 2)
+                    end
+                end
+            end)
+
             local label = "chunk:" .. chunkX .. "," .. chunkY
             local chunkCenterX = chunkX + chunkRegion/2
             local chunkCenterY = chunkY + chunkRegion/2
             love.graphics.setColor(1, 1, 0, 1)
             love.graphics.print(label, chunkCenterX, chunkCenterY)
-
-            Grid.foreachInChunk(cx, cy, function(cell, gx, gy)
-                local wx, wy = Grid.gridToWorld(gx, gy)
-                love.graphics.setColor(0.4, 0.4, 0.4, 1)
-                love.graphics.rectangle("line", wx, wy, cellSize, cellSize)
-                if cell ~= nil then
-                    love.graphics.setColor(1, 1, 1, 1)
-                    love.graphics.print(cell, wx + 2, wy + 2)
-                end
-            end)
         end
     end
 
