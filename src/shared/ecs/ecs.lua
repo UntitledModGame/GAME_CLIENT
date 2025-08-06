@@ -292,8 +292,9 @@ end
 local newEntityTc = typecheck.assert("string", "number", "number", "table?")
 
 ---@param etypeName string
----@param x any
----@param y any
+---@param x number
+---@param y number
+---@param comps table<string,any>
 ---@return Entity|table<string,any>
 function ecs.newEntity(etypeName, x,y, comps)
     newEntityTc(etypeName, x,y, comps)
@@ -309,10 +310,13 @@ function ecs.newEntity(etypeName, x,y, comps)
     currentId = currentId + 1
     ---@diagnostic disable-next-line
     ent.___id = currentId
-    for k,v in pairs(comps) do
-        ent:addComponent(k,v)
+    for comp, _ in pairs(ent:getEntityType()) do
+        local v = compToView[comp]
+        if v then
+            v:_addEntity(ent)
+        end
     end
-    for k,v in pairs(ent:getEntityType()) do
+    for k,v in pairs(comps) do
         ent:addComponent(k,v)
     end
     addBuffer:add(ent)
@@ -379,13 +383,16 @@ if constants.DEBUG_INTERCEPT_ENTITY_COMPONENTS then
     function Entity.rawsetComponent(ent, comp, val)
         rawset(ent.___debugproxy, comp, val)
     end
+    function Entity.rawgetComponent(ent, comp)
+        return rawget(ent.___debugproxy, comp)
+    end
 else
 
     function Entity.components(ent)
         return pairs(ent)
     end
     Entity.rawsetComponent = rawset
-
+    Entity.rawgetComponent = rawget
 end
 
 
@@ -546,7 +553,7 @@ end
 ---@param comp string
 ---@return boolean
 function Entity:isRegularComponent(comp)
-    return rawget(self,comp)
+    return self:rawgetComponent(comp)
 end
 
 function Entity:isSharedComponent(comp)
