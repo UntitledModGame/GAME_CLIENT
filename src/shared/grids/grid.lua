@@ -22,6 +22,16 @@ local function getIndex(x, y)
 end
 
 local function getChunkKey(x, y)
+    --[[
+    TODO: maybe we should benchmark this..?
+    I think this could be pretty inefficient since it creates
+    an allocation under the hood (even though its interned!!)
+    Would maybe create an annoying amount of garbage.
+    We should seek to optimize this in the future I think.
+    
+    Take a look a "Negatve integer pairing function Szudzik pairing"
+    (ask claude or soemthng)
+    ]]
     return x .. "," .. y
 end
 
