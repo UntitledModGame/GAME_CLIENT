@@ -1,4 +1,9 @@
 
+local jit = require("jit")
+jit.off()
+jit.flush()
+
+
 love.graphics.setDefaultFilter("nearest", "nearest")
 
 
@@ -44,11 +49,12 @@ local LAUNCH_ARGS = {
     kind = "server" or "client",
     modlist = {"mod", "list", "goes", "here"},
 
-    localClient = true or false,
+    localClient = true or false, -- <<<< override ipport with localhost:port
     clientIpPort = "ip:port" or nil,
     -- if this ^^^^ is given; client is connecting to online server
 
     localServer = true or false,
+    -- if this ^^^ is true, server will open a local ENet connection
     serverIpPort = "ip:port" or nil, -- 
     -- if this ^^^^ is given; server is hosting an online server
 }
@@ -69,7 +75,6 @@ local function doLaunchArgs(args)
     local isClient = launchArgs.kind == "client"
     assert(isClient or isServer)
     assert((not isClient) or launchArgs.localClient or launchArgs.clientIpPort)
-    assert((not isServer) or launchArgs.localServer or launchArgs.serverIpPort)
 
     for k, v in pairs(LAUNCH_ARGS) do
         if not launchArgs[k] then
@@ -125,5 +130,7 @@ end
 
 
 function love.update(dt)
+    love.timer.sleep(0.2)
+    conn:update(dt)
 end
 

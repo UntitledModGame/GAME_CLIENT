@@ -1,4 +1,7 @@
 
+local jit = require("jit")
+jit.off()
+
 
 ---@class ecs
 local ecs = {}

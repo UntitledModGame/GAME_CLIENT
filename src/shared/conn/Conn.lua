@@ -64,6 +64,7 @@ function Writer:init(options)
 end
 
 local encode = string.buffer.encode
+
 function Writer:flush()
     local data = encode(self.buffer)
     self.buffer = {}
@@ -202,13 +203,27 @@ end
 
 
 
+---@class Reader
 local Reader = tools.SafeClass()
 
-local KEYS = {"conn"}
 
-function Reader:init(buffer, options)
-    tools.assertKeys(options, KEYS)
-    self.conn = options.conn
+---@param self Conn
+---@param data string
+---@return Reader?
+---@return string?
+local function tryCreateReader(self, data)
+    local ok, buffer = pcall(string.buffer.decode,data)
+    if ok then
+        return Reader(buffer, self)
+    end
+    return nil, tostring(buffer)
+end
+
+
+---@param buffer string[]
+---@param conn Conn
+function Reader:init(buffer, conn)
+    self.conn = conn
     self.buffer = buffer
     self.failed = false
     self.i = 1
@@ -358,35 +373,47 @@ end
 ---@field packetIdToName table<integer, string>
 ---@field clientIdToInfo table<string, ClientInfo>
 ---@field peerToInfo table<userdata, ClientInfo>
+---@field packetListeners table<string, function>
 ---@field clientHost any clientside only
+---@field isReady boolean clientisde only
 ---@field onlineHost any serverside only
 ---@field localHost any serverside only
 local Conn = {}
 local Conn_mt = {__index = Conn}
 
 
-local CLIENT_JOINED = 0
 local CLIENT_AUTHENTICATED = 1
 local CLIENT_READY = 2
 
 
+local LOCAL_IPPORT = "localhost:" .. tostring(constants.LOCALHOST_UDP_PORT)
 
-function Conn:hostServer()
-    local ipport = ip .. ":" .. tostring(port or 0)
-    self.onlineHost = enet.host_create(ipport)
 
-    self.localHost = enet.host_create("127.0.0.0:" .. tostring(constants.LOCALHOST_UDP_PORT))
+---@param self Conn
+local function hostServer(self)
+    if launchArgs.localServer then
+        self.localHost = enet.host_create(LOCAL_IPPORT)
+        assert(self.localHost, "Enet host creation failed.")
+    end
+
+    if launchArgs.serverIpPort then
+        self.onlineHost = enet.host_create(launchArgs.serverIpPort)
+        assert(self.onlineHost, "Enet host creation failed.")
+    end
+
+    assert(self.localHost or self.onlineHost, "????")
 end
 
 
-
----@param ip string
----@param port number
-function Conn:createClient(ip, port)
+---@param self Conn
+local function createClient(self)
     self.clientHost = enet.host_create()
-    self.clientHost:connect(ip .. ":" .. port)
+    if launchArgs.localClient then
+        self.clientHost:connect("127.0.0.1:"..tostring(constants.LOCALHOST_UDP_PORT))
+    else assert(launchArgs.clientIpPort)
+        self.clientHost:connect(launchArgs.clientIpPort)
+    end
 end
-
 
 
 
@@ -408,7 +435,7 @@ local function newConn()
 
     self.clientIdToInfo = {--[[
         [clientId] -> {
-            status = CLIENT_JOINED or CLIENT_AUTHENTICATED or CLIENT_READY
+            status = CLIENT_AUTHENTICATED or CLIENT_READY
             username = "john_69",
             peer = enetPeer,
             clientId = clientId
@@ -416,7 +443,18 @@ local function newConn()
     ]]}
     self.peerToInfo = {} -- { [peer] -> info }   (same as above, but from enet-peer mapping)
 
-    return setmetatable(self, Conn_mt)
+    self.packetListeners = {} -- [packetName] -> listenFunc
+
+    setmetatable(self, Conn_mt)
+
+    if SERVER_SIDE then
+        hostServer(self)
+    else assert(CLIENT_SIDE)
+        createClient(self)
+        self.isReady = false
+    end
+
+    return self
 end
 
 
@@ -438,7 +476,7 @@ end
 ---@param tabl table
 ---@return boolean, string?
 local function validateConnectJson(tabl)
-    if tabl.connectJson ~= "connectJson" then
+    if tabl.validateCheck ~= "connectJson" then
         return false, "Invalid ConnectJson"
     end
     if type(tabl.auth) ~= "string" then
@@ -455,7 +493,7 @@ end
 
 
 ---@param data string
----@return boolean
+---@return boolean|table
 ---@return string?
 local function tryDeserConnectJson(data)
     local ok, tabl
@@ -463,7 +501,11 @@ local function tryDeserConnectJson(data)
     if not ok then
         return false, "Couldnt decode ConnectJson: " .. tostring(tabl)
     end
-    return validateConnectJson(tabl)
+    local ok2, er = validateConnectJson(tabl)
+    if not ok2 then
+        return false, er
+    end
+    return tabl
 end
 
 
@@ -479,10 +521,12 @@ local function clientInitJson(tabl_or_string)
         tabl = tabl_or_string
     end
 
-    assert(tabl.clientInitJson == "clientInitJson")
+    assert(tabl.validateCheck == "clientInitJson")
     assert(tabl.packetNameToId)
     -- todo: put mod-versions here? 
     -- That way, player can check that everything is installed correctly
+
+    return tabl
 end
 
 
@@ -507,9 +551,16 @@ function Conn:getPacketName(id)
 end
 
 
+---@param packetName string
+---@param func fun(clientId: string, a,b,c,d,e,f)
+function Conn:on(packetName, func)
+    self.packetListeners[packetName] = func
+end
+
 
 function Conn:unicast(clientId, packetName, a,b,c,d,e)
-
+    assert(SERVER_SIDE, "?")
+    
 end
 
 
@@ -522,14 +573,85 @@ end
 
 
 
+
+---@param self Conn
+---@param peer any
+---@param connectJson any
+local function registerClient(self, peer, connectJson)
+    local info = {
+        clientId = connectJson.clientId,
+        status = CLIENT_AUTHENTICATED,
+        username = connectJson.username,
+        peer = peer
+    }
+    self.clientIdToInfo[connectJson.clientId] = info
+    self.peerToInfo[peer] = info
+end
+
+
+
+---@param self Conn
+---@param data string
+---@param func fun(self, packetName, a,b,c,d,e,f)
+local function readPacketBundle(self, data, func)
+    -- data = decompress(data) --todo: in future have decompression
+    local reader, er = tryCreateReader(self, data)
+    if not reader then
+        log.error("Couldnt create reader: ", er)
+        return
+    end
+
+    local packetName, a,b,c,d,e,f = reader:read()
+    while packetName do
+        func(self, packetName, a,b,c,d,e,f)
+        packetName, a,b,c,d,e,f = reader:read()
+    end
+
+    if reader:hasFailed() then
+        local err = a
+        log.error("recieved bad packet: ", err)
+    end
+end
+
+
+---@param self Conn
+---@param ev {data:string, peer:any}
 local function dispatchReceive(self, ev)
     local data = ev.data
     local peer = ev.peer -- ENet peer
 
     if SERVER_SIDE then
+        local info = self.peerToInfo[peer]
+        if info then
+            -- recv normal packet:
+            local clientId = info.clientId
+            readPacketBundle(self, data, function(packetName, a,b,c,d,e,f)
+                local fun = self.packetListeners[packetName]
+                if fun then
+                    fun(clientId, a,b,c,d,e,f)
+                end
+            end)
+        else
+            -- client not joined yet! It's ConnectJson
+            local connectJson = assert(tryDeserConnectJson(data))
+            -- ^^^ TODO: remove this assertion, replace with proper error handling
+            registerClient(self, peer, connectJson)
+            log.info("Client authenticated: ", connectJson.clientId)
+            peer:send(json.encode(clientInitJson({
+                validateCheck = "clientInitJson",
+                packetNameToId = self.packetNameToId,
+            })))
+        end
 
     else assert(CLIENT_SIDE)
-        
+        if self.isReady then
+            -- recv packet normally
+        else
+            local clInitJson = clientInitJson(data)
+            assert(clInitJson.validateCheck == "clientInitJson")
+            log.info("Recvd clientInitJson: ", data)
+            self.packetIdToName = clInitJson.packetIdToName
+        end
     end
 end
 
@@ -551,7 +673,17 @@ end
 
 local function dispatchConnect(self, ev)
     if CLIENT_SIDE then
-        
+        local connectJson = {
+            validateCheck = "connectJson",
+
+            -- TODO: put proper values here
+            auth = "... todo ...",
+            clientId = tostring(love.math.random(0,10000)),
+            username = "playr_" .. tostring(love.math.random(0,10000))
+        }
+        assert(validateConnectJson(connectJson), "Invalid connectJson")
+        log.info("Sending connectJson: ")
+        ev.peer:send(json.encode(connectJson))
     else -- SERVER:
         -- do nothing yet. Wait for auth.
     end
@@ -568,21 +700,36 @@ local dispatch = {
 
 
 
-local function pollPackets(self)
-    local host = self.offlineEnetHost
-    local ev = host:service()
-    while ev do
-        dispatch[ev.type](self, ev)
-        ev = host:service()
+local function pollHost(self, host)
+    local ok, ev = pcall(host.service, host, 0)
+    if not ok then
+        log.error(ev)
     end
 
-    if self.isOnline then
-        host = self.enetHost
-        ev = host:service()
-        while ev do
-            dispatch[ev.type](self, ev)
-            ev = host:service()
+    while ev do
+        dispatch[ev.type](self, ev)
+
+        ok, ev = pcall(host.service, host, 0)
+        if not ok then
+            log.error(ev)
         end
+    end
+end
+
+
+local function pollPackets(self)
+
+    if SERVER_SIDE then
+        if self.onlineHost then
+            pollHost(self, self.onlineHost)
+        end
+        if self.localHost then
+            pollHost(self, self.localHost)
+        end
+
+    else assert(CLIENT_SIDE)
+        assert(self.clientHost)
+        pollHost(self, self.clientHost)
     end
 end
 

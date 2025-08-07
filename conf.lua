@@ -86,7 +86,7 @@ function love.errorhandler(msg)
 
 	error_printer(msg, 2)
 
-	if not love.window or not love.graphics or not love.event then
+	if (true) or (not love.window) or (not love.graphics) or (not love.event) then
 		return dummyPoll
 	end
 
