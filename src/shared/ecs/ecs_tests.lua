@@ -1,6 +1,6 @@
 
 -- tests are disabled by default, since our ECS has global/static state
-local DO_TESTS = true
+local DO_TESTS = false
 
 if (not DO_TESTS) then return end
 

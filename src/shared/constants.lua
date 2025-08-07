@@ -23,9 +23,9 @@ return setmetatable({
 
     DISCORD_LINK = "https://discord.gg/Pd4nwmy2HJ";
 
-    UDP_PORT = 57843; -- The source udp port to be used client-side, 
-    -- by all udp sockets.
-    -- (And by the ENet host.)
+    LOCALHOST_UDP_PORT = 57843;
+    -- udp-port to be used for localhost server. 
+    -- (This means we don't need to do weird port-discovery stuff)
 
     SERVER_CONNECT_TIMEOUT = 8; -- anything more than this is a timeout.
 

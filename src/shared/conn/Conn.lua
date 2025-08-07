@@ -358,6 +358,9 @@ end
 ---@field packetIdToName table<integer, string>
 ---@field clientIdToInfo table<string, ClientInfo>
 ---@field peerToInfo table<userdata, ClientInfo>
+---@field clientHost any clientside only
+---@field onlineHost any serverside only
+---@field localHost any serverside only
 local Conn = {}
 local Conn_mt = {__index = Conn}
 
@@ -365,6 +368,26 @@ local Conn_mt = {__index = Conn}
 local CLIENT_JOINED = 0
 local CLIENT_AUTHENTICATED = 1
 local CLIENT_READY = 2
+
+
+
+function Conn:hostServer()
+    local ipport = ip .. ":" .. tostring(port or 0)
+    self.onlineHost = enet.host_create(ipport)
+
+    self.localHost = enet.host_create("127.0.0.0:" .. tostring(constants.LOCALHOST_UDP_PORT))
+end
+
+
+
+---@param ip string
+---@param port number
+function Conn:createClient(ip, port)
+    self.clientHost = enet.host_create()
+    self.clientHost:connect(ip .. ":" .. port)
+end
+
+
 
 
 local function newConn()
@@ -396,22 +419,6 @@ local function newConn()
     return setmetatable(self, Conn_mt)
 end
 
-
-
-
-
-function Conn:hostServer(ip)
-    local ipport = ip .. ":0"
-    self.host = enet.host_create(ipport)
-end
-
-
-
-
-function Conn:createClient(ip, port)
-    local ipport = ip .. ":0"
-    self.host = enet.host_create(ipport)
-end
 
 
 

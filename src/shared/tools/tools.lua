@@ -1,5 +1,8 @@
 
 
+local socket = require("socket")
+
+
 
 local tools = {}
 
@@ -145,6 +148,15 @@ function tools.getFuncInfo(x)
 
     return source
 end
+
+
+
+function tools.getComputerIP()
+    -- use this as the hosting IP for online servers
+    return socket.dns.toip(socket.dns.gethostname())
+end
+
+
 
 
 

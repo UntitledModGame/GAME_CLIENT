@@ -17,6 +17,7 @@
 
 @echo off
 
-start "Server" lovec . --server
-start "Client" lovec .
+start "Server" lovec . "{\"kind\":\"server\",\"localServer\":true}"
+start "Client" lovec . "{\"kind\":\"client\",\"localClient\":true}"
+
 
