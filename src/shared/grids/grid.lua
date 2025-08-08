@@ -18,6 +18,7 @@ local Grid = {
 }
 
 function Grid.getChunkSize() return CHUNK_SIZE end
+
 function Grid.getCellSize() return GRID_CELL_SIZE end
 
 local function getIndex(x, y)
@@ -158,6 +159,38 @@ end
 
 function Grid.getCellType(name)
     return Grid.cellTypes[name]
+end
+
+-- HELPERS --
+function Grid.collectCellsByZ(fnYToZ)
+    local gridCells = {}
+
+    for key, chunk in pairs(Grid.mainLayer) do
+        local commaPos = string.find(key, ",", 1, true)
+        local cx = tonumber(string.sub(key, 1, commaPos - 1))
+        local cy = tonumber(string.sub(key, commaPos + 1))
+        for i = 0, (CHUNK_SIZE * CHUNK_SIZE) - 1, 1 do
+            local val = chunk[i]
+            if val ~= nil then
+                local lx = i % CHUNK_SIZE
+                local ly = floor(i / CHUNK_SIZE)
+                local gx = cx * CHUNK_SIZE + lx
+                local gy = cy * CHUNK_SIZE + ly
+                local z = fnYToZ(gy)
+                local bucket = gridCells[z]
+                if not bucket then
+                    bucket = {}
+                    gridCells[z] = bucket
+                end
+                bucket[#bucket + 1] = {
+                    x = gx,
+                    y = gy,
+                    val = val,
+                }
+            end
+        end
+    end
+    return gridCells
 end
 
 return Grid

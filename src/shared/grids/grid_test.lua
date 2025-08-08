@@ -121,6 +121,25 @@ function TestGrid()
         end)
     end
 
+    print("Testing collectCellsByZ...")
+    local function yToZ(y) return math.floor(y) end
+    local cells = Grid.collectCellsByZ(yToZ)
+    assert(cells[0] ~= nil)
+    assert(cells[25] ~= nil)
+    assert(cells[26] ~= nil)
+    assert(cells[27] ~= nil)
+    assert(cells[31] ~= nil)
+
+    local minZ, maxZ = -2, 36
+    local zIndex = minZ
+    while zIndex <= maxZ do
+        if cells[zIndex] then
+            for _, cell in ipairs(cells[zIndex]) do
+                assert(cell ~= nil)
+            end
+        end
+        zIndex = zIndex + 1
+    end
     print("All test passed!")
 end
 
