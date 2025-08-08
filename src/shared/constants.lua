@@ -104,7 +104,6 @@ return setmetatable({
 
     -- mod path for %appdata% only for experimental mods (see _modloader.md)
     MOD_PATH = "mods/",
-
     MOD_CONFIG_FILE = "umg_mod.lua",
 
     MOD_REQUIRE_CHUNK_PREFIX = "[mods] ", -- when error is thrown, prefix with this
