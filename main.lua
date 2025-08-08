@@ -1,7 +1,40 @@
 
-local jit = require("jit")
-jit.off()
-jit.flush()
+
+-- relative-require
+do
+local stack = {""}
+local oldRequire = require
+local function stackRequire(path)
+    table.insert(stack, path)
+    local result = oldRequire(path)
+    table.remove(stack)
+    return result
+end
+
+
+--[[
+we *MUST* overwrite `require` here,
+or else the stack will become malformed.
+]]
+function _G.require(path)
+    if (path:sub(1,1) == ".") then
+        -- its a relative-require!
+        local lastPath = stack[#stack]
+        if lastPath:find("%.") then -- then its a valid path1
+            local subpath = lastPath:gsub('%.[^%.]+$', '')
+            return stackRequire(subpath .. path)
+        else
+            -- we are in root-folder; remove the dot and require
+            return stackRequire(path:sub(2))
+        end
+    else
+        return stackRequire(path)
+    end
+end
+
+end
+
+
 
 
 love.graphics.setDefaultFilter("nearest", "nearest")
@@ -38,6 +71,8 @@ the launcher passes some args:
 We just join the server, launch the game, etc
 
 ]]
+
+
 
 
 
@@ -118,6 +153,11 @@ function love.load(args)
     local ffi = require("ffi")
     assert(ffi.abi("le"), "Bad endianness. This game will not run on your computer.")
 
+    local modloader = require("src.shared.modloader.modloader")
+    modloader.load({""})
+
+    local Conn = require("src.shared.conn.Conn")
+    rawset(_G, "conn", Conn())
 
     print((SERVER_SIDE and "Server booted") or "Client loaded")
 end

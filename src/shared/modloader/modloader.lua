@@ -1,5 +1,7 @@
 
 
+local Loader = require(".Loader")
+
 local modloader = {}
 
 
@@ -14,4 +16,8 @@ function modloader.load(modlist)
 
     end
 end
+
+
+return modloader
+
 

@@ -5,6 +5,10 @@ A "Loader" object is responsible for loading 1 (ONE) mod.
 
 ]]
 
+local FSysObj = require(".FSysObj")
+
+assert(FSysObj, "?")
+
 local Loader = tools.SafeClass()
 
 

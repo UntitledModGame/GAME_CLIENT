@@ -24,7 +24,3 @@ if constants.TEST then
 end
 
 
-
-local Conn = require("src.shared.conn.Conn")
-rawset(_G, "conn", Conn())
-
