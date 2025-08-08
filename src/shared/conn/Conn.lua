@@ -682,8 +682,9 @@ local function dispatchConnect(self, ev)
             username = "playr_" .. tostring(love.math.random(0,10000))
         }
         assert(validateConnectJson(connectJson), "Invalid connectJson")
-        log.info("Sending connectJson: ")
-        ev.peer:send(json.encode(connectJson))
+        local dat = json.encode(connectJson)
+        log.info("Sending connectJson: ", dat)
+        ev.peer:send(dat)
     else -- SERVER:
         -- do nothing yet. Wait for auth.
     end
