@@ -60,6 +60,11 @@ end
 function config.tryLoadModConfig(modname)
     local cfgAPI = makeAPI(modname)
 
+    error("we cant use love API here! This code is meant to be cross-platform. ")
+    -- remove love.* API from everywhere in the file.
+    -- instead of reading mod-config file directly; load it outside, and pass lua-code in as a string
+    -- (same with OS; pass OS through the args)
+
     local configPath = MOD_PATH .. "/" .. modname .. "/" .. MOD_CONFIG_FILE
     local configContent, err = love.filesystem.read(configPath)
     if not configContent then

@@ -1,7 +1,7 @@
 
 
 local Loader = require(".Loader")
-local config = require(".config")
+local modConfig = require(".mod_config")
 
 
 
@@ -22,7 +22,7 @@ function modloader.load(modlist)
     for _, mod in ipairs(modlist)do
         currentlyLoadingMod = mod
         -- for future; fail gracefully if config loading fails.
-        local cfg = assert(config.tryLoadModConfig())
+        local cfg = assert(modConfig.tryLoadModConfig())
     end
 end
 
