@@ -94,8 +94,8 @@ end
 
 
 
-local make_require_tc = tc.assert("table", "function")
-local requireTc = tc.assert(tc.string)
+local make_require_tc = typecheck.assert("table", "function")
+local requireTc = typecheck.assert("string")
 
 local function make_require(lobj, load_string, preloaded)
     make_require_tc(lobj, load_string)

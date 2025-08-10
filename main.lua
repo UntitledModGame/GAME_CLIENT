@@ -154,7 +154,7 @@ function love.load(args)
     assert(ffi.abi("le"), "Bad endianness. This game will not run on your computer.")
 
     local modloader = require("src.shared.modloader.modloader")
-    modloader.load({""})
+    modloader.loadMods({"oli:test_mod_2"})
 
     local Conn = require("src.shared.conn.Conn")
     rawset(_G, "conn", Conn())
@@ -170,7 +170,6 @@ end
 
 
 function love.update(dt)
-    love.timer.sleep(0.2)
     conn:update(dt)
 end
 

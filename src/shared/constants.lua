@@ -51,9 +51,6 @@ return setmetatable({
 
     TEST = true; -- Do we want to do testing?
 
-    --[[
-        TODO: Combine all these debug options into one.
-    ]]
     DEBUG = true; -- Do we want debug msgs?
 
     DEBUG_INTERCEPT_ENTITY_COMPONENTS = false, -- Do we want to intercept entity-component reads/writes?
@@ -91,7 +88,8 @@ return setmetatable({
 
     PROFILE_EVENT_BUS = false, -- true = emits event bus profiling data in milliseconds.
 
-    UMG_NAMESPACE_SEPARATOR = ":",
+    UMG_NAMESPACE_SEPARATOR = ":", -- author:mod
+    UMG_MOD_FOLDER_NAMESPACE_SEPARATOR = "@", -- author:mod --> author@mod for filesystem
 
     PCKR_API_REGISTER_PREFIX = "@", -- prepend this to any register alias used while modding.
     BOXER_BUILTIN_PACKET_PREFIX = "@", -- prepend this to builtin packet names

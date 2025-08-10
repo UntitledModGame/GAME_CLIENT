@@ -6,9 +6,8 @@ local tsort = require(".tsort")
 local modConfig = {}
 
 
-local MAX_INSTRUCTIONS = constants.MOD_PATH
+local MAX_INSTRUCTIONS = 2000000
 
-local MOD_PATH = constants.MOD_PATH
 local MOD_CONFIG_FILE = constants.MOD_CONFIG_FILE
 
 
@@ -22,10 +21,16 @@ local configCache = {--[[
 
 
 
-local function isInstalled(modname)
-    return love.filesystem.getInfo(constants.MOD_PATH .. "/" .. modname)
+
+
+function modConfig.getPath(modname)
+    return constants.MOD_PATH .. modname:gsub("%:", "@")
 end
 
+
+local function isInstalled(modname)
+    return love.filesystem.getInfo(modConfig.getPath(modname))
+end
 
 
 
@@ -81,12 +86,12 @@ end
 function modConfig.tryLoadModConfig(modname)
     local cfgAPI = makeAPI(modname)
 
-    error("we cant use love API here! This code is meant to be cross-platform. ")
+    log.error("FOR FUTURE: we cant use love API here! This code is meant to be cross-platform. ")
     -- remove love.* API from everywhere in the file.
     -- instead of reading mod-config file directly; load it outside, and pass lua-code in as a string
     -- (same with OS; pass OS through the args)
 
-    local configPath = MOD_PATH .. "/" .. modname .. "/" .. MOD_CONFIG_FILE
+    local configPath = modConfig.getPath(modname) .. "/" .. MOD_CONFIG_FILE
     local configContent, err = love.filesystem.read(configPath)
     if not configContent then
         error("Config file not found or could not be read: " .. configPath .. " (" .. tostring(err) .. ")")
@@ -136,6 +141,7 @@ end
 ---@param modname string
 ---@return table
 function modConfig.getConfig(modname)
+    assert(isInstalled(modname))
     if configCache[modname] then
         return configCache[modname]
     end
