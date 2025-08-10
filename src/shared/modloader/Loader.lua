@@ -8,16 +8,15 @@ A "Loader" object is responsible for loading 1 (ONE) mod.
 local FSysObj = require(".FSysObj")
 
 
----@class LObj
-local LObj = tools.SafeClass()
+---@class Loader
+local Loader = tools.SafeClass()
 
 
 
-local new_lobj_tc = typecheck.assert("table", "table")
+local newLoaderTc = typecheck.assert("table")
 
----@param modLoader ModLoader
 ---@param options {modname:string,path:string,is_local_path:boolean}
-function LObj:init(modLoader, options)
+function Loader:init(options)
     --[[
         options: {
             modname = "x",
@@ -26,20 +25,19 @@ function LObj:init(modLoader, options)
             -- whether the path should be used with love.filesystem or not
         }
     ]]
-    new_lobj_tc(modLoader, options)
+    newLoaderTc(options)
     assert(options.modname)
     assert(options.path)
     assert(options.is_local_path ~= nil)
 
-    -- `modLoader` is shared between multiple LObjs
-    self.modLoader = modLoader
+    -- `modLoader` is shared between multiple Loader
     self.path = options.path
     self.modname = options.modname
     self.is_local_path = options.is_local_path
 
     -- `env` is the global environment (_G) of this mod.
     ---@type _G
-    self.env = setmetatable({}, modLoader.env_mt)
+    self.env = {}
 
     -- used for interacting with files within the mod
     self.fsysObj = FSysObj(options.path)
@@ -47,15 +45,15 @@ end
 
 if false then
     ---@param options {modname:string,path:string}
-    ---@return LObj
-    function LObj(options) end ---@diagnostic disable-line: cast-local-type, missing-return
+    ---@return Loader
+    function Loader(options) end ---@diagnostic disable-line: cast-local-type, missing-return
 end
 
 
 
 
 ---@param str string
-function LObj:isNamespaced(str)
+function Loader:isNamespaced(str)
     --[[
         returns true if `str` starts with "<modname>:"
         false otherwise.
@@ -128,7 +126,7 @@ local STATIC_SOUND_SIZE = 40000 -- 40_000 bytes is a good size for small sounds.
 ]]
 
 ---@generic T
----@param self LObj
+---@param self Loader
 ---@param hsh table<string,T>
 ---@param name string
 ---@param obj T
@@ -144,7 +142,7 @@ local function put(self, hsh, name, obj)
 end
 
 
----@param self LObj
+---@param self Loader
 ---@param path string
 local function load_src(self, path)
     local src_type = "stream"
@@ -174,7 +172,7 @@ Make sure all the mod images fit within the atlas.
 ]]
 
 
----@param self LObj
+---@param self Loader
 ---@param path string
 local function load_quad(self, path)
     --[[
@@ -217,7 +215,7 @@ local extension_to_loader = {
 }
 
 
----@param self LObj
+---@param self Loader
 ---@param path string
 ---@param extension string
 local function loadAssetFile(self, path, extension)
@@ -228,7 +226,7 @@ end
 
 
 
----@param self LObj
+---@param self Loader
 ---@param path string
 ---@param func fun(filepath:string,extension:string)
 local function iterDirectory(self, path, func)
@@ -246,7 +244,7 @@ local function iterDirectory(self, path, func)
 end
 
 
----@param self LObj
+---@param self Loader
 ---@param path string
 ---@param func fun(filepath:string,extension:string)
 local function loadTree(self, path, func)
@@ -272,7 +270,7 @@ end
 
 
 
----@param self LObj
+---@param self Loader
 ---@param path string
 local function loadAssets(self, path)
     if not CLIENT_SIDE then
@@ -294,7 +292,7 @@ end
 
 
 
----@param self LObj
+---@param self Loader
 ---@param path string
 local function loadLuaFiles(self, path)
     -- Loads ALL lua files in a directory, including nested.
@@ -307,7 +305,7 @@ local function loadLuaFiles(self, path)
     end)
 end
 
----@param self LObj
+---@param self Loader
 ---@param path string
 local function loadLuaFilesFlat(self, path)
     -- loads lua files in a directory, 
@@ -324,12 +322,12 @@ end
 
 
 
----@param lobj LObj
-local function makeEnv(lobj)
+---@param ldr Loader
+local function makeEnv(ldr)
     if CLIENT_SIDE then
-        return require("src.client.api._G")(lobj)
+        return require("src.client.api._G")(ldr)
     elseif SERVER_SIDE then
-        return require("src.server.api._G")(lobj)
+        return require("src.server.api._G")(ldr)
     end
     error("wot")
 end
@@ -337,7 +335,7 @@ end
 
 
 
-function LObj:loadMod()
+function Loader:loadMod()
     local env = makeEnv(self)
     for k,v in pairs(env) do
         self.env[k] = v
@@ -361,6 +359,6 @@ end
 
 
 
-return LObj
+return Loader
 
 

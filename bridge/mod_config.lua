@@ -29,7 +29,8 @@ end
 
 
 local function isInstalled(modname)
-    return love.filesystem.getInfo(modConfig.getPath(modname))
+    local pth = modConfig.getPath(modname)
+    return love.filesystem.getInfo(pth)
 end
 
 
