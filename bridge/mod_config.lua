@@ -1,13 +1,31 @@
 
+local tsort = require(".tsort")
 
----@class config
-local config = {}
+
+---@class modConfig
+local modConfig = {}
 
 
 local MAX_INSTRUCTIONS = constants.MOD_PATH
 
 local MOD_PATH = constants.MOD_PATH
 local MOD_CONFIG_FILE = constants.MOD_CONFIG_FILE
+
+
+
+local configCache = {--[[
+    [modname] -> mod-config
+
+    eg: 
+    ["john:fire_mod"] -> {dependencies = {...}, type=..}
+]]}
+
+
+
+local function isInstalled(modname)
+    return love.filesystem.getInfo(constants.MOD_PATH .. "/" .. modname)
+end
+
 
 
 
@@ -57,7 +75,10 @@ end
 
 
 
-function config.tryLoadModConfig(modname)
+---@param modname string
+---@return table?
+---@return string?
+function modConfig.tryLoadModConfig(modname)
     local cfgAPI = makeAPI(modname)
 
     error("we cant use love API here! This code is meant to be cross-platform. ")
@@ -97,14 +118,14 @@ function config.tryLoadModConfig(modname)
     debug.sethook(oldHook)
 
     if timeoutReached then
-        return false, "Config execution timed out for module '" .. modname .. "': possible infinite loop"
+        return nil, "Config execution timed out for module '" .. modname .. "': possible infinite loop"
     end
     if not success then
-        return false, ("Failed to load config:" .. modname .. "': " .. tostring(result))
+        return nil, ("Failed to load config:" .. modname .. "': " .. tostring(result))
     end
 
     if type(result) ~= "table" then
-        return false, "Mod config didnt return table"
+        return nil, "Mod config didnt return table"
     end
 
     return result
@@ -112,6 +133,95 @@ end
 
 
 
+---@param modname string
+---@return table
+function modConfig.getConfig(modname)
+    if configCache[modname] then
+        return configCache[modname]
+    end
+    -- for future; fail gracefully if config loading fails.
+    local cfg = assert(modConfig.tryLoadModConfig(modname))
+    configCache[modname] = cfg
+    return cfg
+end
 
-return config
+
+
+
+local function getShallowDependencies(modname)
+    -- gets shallow-dependencies
+    local config = modConfig.getConfig(modname)
+    if config.dependencies then
+        local arr = tools.Array(config.dependencies)
+        if not arr:find(modname) then
+            arr:add(modname)
+        end
+        return arr
+    else
+        return tools.Array({modname})
+    end
+end
+
+
+
+
+
+local addDepsTc = typecheck.assert("string", "table", "table")
+local function addDeps(modname, seen_deps, graph)
+    addDepsTc(modname, seen_deps, graph)
+    if seen_deps[modname] then
+        return
+    end
+    seen_deps[modname] = true
+    local deps = getShallowDependencies(modname)
+    if (not deps) or (#deps <= 1) then
+        -- No dependencies, therefore, add an unconnected node.
+        graph:add(modname)
+        return
+    end
+
+    for _, depname in ipairs(deps) do
+        -- add dependencies to graph
+        if modname ~= depname then
+            graph:add(modname, depname)
+        end
+        addDeps(depname, seen_deps, graph)
+    end
+end
+
+
+
+local function reversed(t)
+    local r = {}
+    for i = #t, 1, -1 do r[#r+1] = t[i] end
+    return r
+end
+
+
+function modConfig.getTopologicallySortedDependencies(modlist)
+    --[[
+        returns modlist, topologically sorted by dependency
+    ]]
+    local graph = tsort.new()
+
+    local seen_deps = {} -- ensure we don't do duplicates
+
+    for _, modname in ipairs(modlist) do
+        addDeps(modname, seen_deps, graph)
+    end
+
+    local tabl = graph:sort()
+    if not tabl then
+        -- TODO: What do we do here? Fail gracefully maybe...?
+        error("Circular dependency in the mod list!")
+    end
+    reversed(tabl)
+    return tabl
+end
+
+
+
+
+
+return modConfig
 

@@ -16,13 +16,9 @@ function modloader.getCurrentlyLoadingMod()
 end
 
 
-
 function modloader.load(modlist)
-    local modGraph = make_topo_sorted()
     for _, mod in ipairs(modlist)do
-        currentlyLoadingMod = mod
-        -- for future; fail gracefully if config loading fails.
-        local cfg = assert(modConfig.tryLoadModConfig())
+        modConfig.getConfig(mod)
     end
 end
 
