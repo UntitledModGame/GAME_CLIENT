@@ -17,6 +17,10 @@ local Grid = {
     groundFallback = nil,
 }
 
+function Grid.getChunkSize() return CHUNK_SIZE end
+
+function Grid.getCellSize() return GRID_CELL_SIZE end
+
 local function getIndex(x, y)
     return x + y * CHUNK_SIZE
 end
@@ -28,7 +32,7 @@ local function getChunkKey(x, y)
     an allocation under the hood (even though its interned!!)
     Would maybe create an annoying amount of garbage.
     We should seek to optimize this in the future I think.
-    
+
     Take a look a "Negatve integer pairing function Szudzik pairing"
     (ask claude or soemthng)
     ]]
@@ -145,12 +149,48 @@ function Grid.worldToGrid(wx, wy)
 end
 
 -- CELL --
+-- INFO: (flam) - possible keys in data:
+--                  - getImage (function)
+--                  - onTick (function)
+--                  - physics (table)
 function Grid.defineCellType(name, data)
     Grid.cellTypes[name] = data
 end
 
 function Grid.getCellType(name)
     return Grid.cellTypes[name]
+end
+
+-- HELPERS --
+function Grid.collectCellsByZ(fnYToZ)
+    local gridCells = {}
+
+    for key, chunk in pairs(Grid.mainLayer) do
+        local commaPos = string.find(key, ",", 1, true)
+        local cx = tonumber(string.sub(key, 1, commaPos - 1))
+        local cy = tonumber(string.sub(key, commaPos + 1))
+        for i = 0, (CHUNK_SIZE * CHUNK_SIZE) - 1, 1 do
+            local val = chunk[i]
+            if val ~= nil then
+                local lx = i % CHUNK_SIZE
+                local ly = floor(i / CHUNK_SIZE)
+                local gx = cx * CHUNK_SIZE + lx
+                local gy = cy * CHUNK_SIZE + ly
+                local z = fnYToZ(gy)
+                local bucket = gridCells[z]
+                if not bucket then
+                    bucket = {}
+                    gridCells[z] = bucket
+                end
+                bucket[#bucket + 1] = {
+                    x = gx,
+                    y = gy,
+                    val = val,
+                }
+            end
+        end
+    end
+    return gridCells
 end
 
 return Grid
